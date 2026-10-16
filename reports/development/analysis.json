@@ -1,0 +1,19 @@
+{
+  "primary_complete": false,
+  "paired_seeds": [],
+  "paired_comparison": null,
+  "conclusion": "Primary comparison incomplete; no claim about an oscillator advantage is supported.",
+  "expected_seeds": [
+    101,
+    102,
+    103,
+    104,
+    105,
+    106
+  ],
+  "generated_at": "20261016T224540.528849Z",
+  "report_revision": "af53767f0eaa947ce2e3f6003d92deb5278fd32e",
+  "run_count": 1,
+  "evaluation_count": 1,
+  "failure_count": 0
+}
