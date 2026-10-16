@@ -46,7 +46,7 @@ def parser() -> argparse.ArgumentParser:
             command.add_argument("--intervention", choices=["none", "identity", "shuffle"], default="none")  # Sensitivity diagnostics.
     schedule = commands.add_parser("study", help="Run or resume the frozen bounded comparison")  # Orchestrated experiment command.
     schedule.add_argument("--root", type=Path, default=Path("runs/study"))  # Stable artifacts permit automatic recovery.
-    schedule.add_argument("--phase", choices=["pilot", "main", "ablations", "evaluate", "all"], default="all")  # Explicit stages.
+    schedule.add_argument("--phase", choices=["checks", "pilot", "main", "ablations", "evaluate", "all"], default="all")  # Explicit stages.
     schedule.add_argument("--dry-run", action="store_true")  # Inspects the schedule without training or test evaluation.
     schedule.add_argument("--device", default=os.environ.get("OFM_DEVICE", "cuda"))  # Matches local hardware by default.
     reports = commands.add_parser("report", help="Build Markdown reports, figures, and PDFs from recorded artifacts")  # Evidence synthesis.
