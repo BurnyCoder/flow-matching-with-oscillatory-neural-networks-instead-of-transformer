@@ -16,14 +16,20 @@ All networks generate unconditional images in pixel space. They share independen
 
 | Run | Status | Parameters | Updates | Train seconds | Images/s | Validation MSE |
 | --- | --- | --- | --- | --- | --- | --- |
+| checks/cifar10-metric-smoke | untrained | 1.29771e+06 | 0 | 0 | — | — |
 | checks/mnist-smoke | step_limit | 1.28949e+06 | 100 | 33.9622 | 376.889 | 2.00869 |
+| study/pilot/mnist-conv-s101 | completed | 1.28846e+06 | 5245 | 1200.05 | 559.445 | 0.215197 |
+| study/pilot/mnist-dit-s101 | completed | 1.29064e+06 | 6778 | 1200.04 | 722.965 | 0.203531 |
 | study/pilot/mnist-onn-s101 | completed | 1.28949e+06 | 3736 | 1200.25 | 398.425 | 0.231511 |
 
 ## Distribution and cost measurements
 
 | Evaluation | Generated/real N | NFE | KID mean | KID subset SD | FID | Pixel SWD | ms/image |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| checks/cifar10-metric-smoke/evaluations/validation | 128/5000 | 32 | 0.609741 | 0.0059603 | 487.666 | — | 21.3627 |
 | checks/mnist-smoke/validation-check | 128/5000 | 32 | — | — | — | 1.10101 | 20.9486 |
+| study/pilot/mnist-conv-s101/evaluations/validation | 512/5000 | 32 | — | — | — | 0.063441 | 13.336 |
+| study/pilot/mnist-dit-s101/evaluations/validation | 512/5000 | 32 | — | — | — | 0.0617331 | 9.42476 |
 | study/pilot/mnist-onn-s101/evaluations/validation | 512/5000 | 32 | — | — | — | 0.0714237 | 27.8529 |
 
 ## Completeness

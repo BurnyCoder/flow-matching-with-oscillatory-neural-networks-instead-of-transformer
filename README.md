@@ -19,6 +19,16 @@ uv run --no-sync ofm --help
 
 The first training command downloads the selected official dataset, reserves validation examples, audits exact pixel duplicates, freezes split manifests, and then trains. Expect several GB of dependency downloads and additional disk space for datasets, checkpoints, full generated tensors, and releases. `uv run --no-sync` preserves the accelerator environment selected above.
 
+To generate digits immediately from the completed 20-minute oscillator pilot, download its public weights. These samples are rough research outputs; this checkpoint is a MNIST pilot, not the CIFAR comparison.
+
+```bash
+HF_HOME=.cache/huggingface uv run --no-sync hf download BurnyCoder/oscillatory-flow-matching-mnist \
+  study/pilot/mnist-onn-s101/config.json study/pilot/mnist-onn-s101/model.safetensors \
+  --local-dir .cache/pretrained/mnist
+uv run --no-sync ofm sample --run .cache/pretrained/mnist/study/pilot/mnist-onn-s101 \
+  --output runs/pretrained-preview --device cpu --count 64 --nfe 32
+```
+
 ```bash
 # Short execution check; this is too brief to establish image quality.
 uv run --no-sync ofm train --dataset mnist --model onn --run-dir runs/example --steps 50 --minutes 3

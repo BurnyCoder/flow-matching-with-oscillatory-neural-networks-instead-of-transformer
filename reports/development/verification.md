@@ -35,4 +35,14 @@ Tests for missing flow/training/evaluation/reporting/publication interfaces were
 
 The 20-minute-per-architecture MNIST pilot uses the pre-specified optimizer settings and validates generalization/visual behavior before freezing CIFAR settings. No CIFAR result was used to choose these parameters. A fixed per-update EMA decay and differing architecture throughput are potential comparative confounders; they are reported as limitations rather than silently adjusted after outcomes. GPU utilization and system background load are not hardware-independent compute measures.
 
+## Completed pilot and metric preflight
+
+All three MNIST pilots completed their original 20-minute budgets. Their fixed first-64 sample grids were inspected: they contain recognizable but rough digits, including ambiguous shapes. Full measurements and images are retained in the generated experiment records rather than repeated here. The freeze was written at `20261016T233806.675239Z`, source `7926ff79c12be5d85eadb49b81aad5d3acfaedcd`, with an empty changes list. CIFAR scheduling inherits these actual saved settings. The CIFAR decoded-pixel audit retained 45,000 training, 5,000 validation, and 10,000 test examples, with no exact cross-split overlap found; this is not a near-duplicate audit.
+
+Before any CIFAR optimization, an untrained oscillator generated 128 validation-check samples. The real torch-fidelity feature/KID/FID path completed, and repeating all metrics from the saved tensors yielded a maximum absolute difference of zero. This preflight used 128-image KID subsets and validation data, so it is not a primary 5,000-image test comparison. Its artifact group is `runs/checks/cifar10-metric-smoke`.
+
+The publicly downloaded trained oscillator pilot also generated 64 images on CPU at 32 velocity evaluations. Two fixed CPU input/time pairs gave exactly equal predictions from the public safetensors weights and the original EMA checkpoint. The saved public-weight SHA-256 is `06201135c2255dcc8b2ee988f9ce128ce6fe2e6eb35f3fd142b3a4db415fec96`; the checkpoint identity and all preview tensors are retained under the pilot's `cpu-public-check` directory. This checks a published trained artifact, in addition to the earlier development export test.
+
+The implementation review and expanded regression suite concluded with 33 passing tests and a passing Ruff check. The frozen dependency sync completed before the CIFAR schedule. These checks justify starting the declared comparison; they do not establish an oscillator quality advantage.
+
 Sources: [protocol](../../docs/protocol.md), [implementation contracts](../../docs/implementation.md), [Karpathy's training recipe](https://karpathy.github.io/2019/04/25/recipe/), [PyTorch serialization](https://docs.pytorch.org/docs/2.11/notes/serialization.html), [SciPy permutation tests](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.permutation_test.html).
