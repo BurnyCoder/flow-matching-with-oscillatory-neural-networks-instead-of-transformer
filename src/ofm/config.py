@@ -4,7 +4,7 @@ Sources: https://docs.python.org/3/library/dataclasses.html;
 https://bbc2.github.io/python-dotenv/; numerical defaults are pre-specified in docs/protocol.md.
 """
 
-from dataclasses import asdict, dataclass, field  # Standard-library immutable-description helpers avoid a config framework.
+from dataclasses import asdict, dataclass, field  # Avoids a separate configuration framework.
 from pathlib import Path  # Keeps paths portable within the checkout.
 
 

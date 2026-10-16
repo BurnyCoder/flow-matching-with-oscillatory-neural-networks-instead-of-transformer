@@ -28,12 +28,10 @@ def test_budget_cannot_be_reset_or_overbooked(tmp_path):
     """Local: refuse unsafe reconfiguration. Global: the hard cap cannot silently increase on resume."""
     path = tmp_path / "budget.json"  # Separate ledger for the failure scenario.
     path.write_text(json.dumps({"limit_seconds": 10, "charged_seconds": 10, "active": None, "history": []}))  # Exhausted.
-    with pytest.raises(BudgetExhausted):  # No work may start when no allocation remains.
-        with BudgetSession(path, 10, 2, "exhausted"):  # Attempts to reserve against an exhausted cap.
-            pytest.fail("exhausted budget was accepted")  # The body must remain unreachable.
-    with pytest.raises(ValueError):  # Increasing the configured limit must be an explicit protocol revision.
-        with BudgetSession(path, 20, 2, "reset"):  # Tests the accidental-reset failure mode.
-            pytest.fail("budget limit was silently changed")  # Guard against hidden budget renewal.
+    with pytest.raises(BudgetExhausted), BudgetSession(path, 10, 2, "exhausted"):  # No allocation remains.
+        pytest.fail("exhausted budget was accepted")  # The body must remain unreachable.
+    with pytest.raises(ValueError), BudgetSession(path, 20, 2, "reset"):  # Rejects silently increasing the existing cap.
+        pytest.fail("budget limit was silently changed")  # Guard against hidden budget renewal.
 
 
 def test_stream_resume_matches_uninterrupted():
