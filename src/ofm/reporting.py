@@ -23,7 +23,8 @@ from ofm.statistics import (  # Shared inferential and pre-training planning cal
 
 def collect_records(root: Path, filename: str) -> list[dict]:
     """Local: read every matching artifact. Global: missing/failed experiments remain distinguishable from favorable completed ones."""
-    return [{**json.loads(path.read_text()), "id": path.parent.relative_to(root).as_posix(), "artifact": str(path)}
+    return [{**json.loads(path.read_text()), "id": (path.with_suffix("") if "*" in filename else path.parent).relative_to(root).as_posix(),
+             "artifact": str(path)}
             for path in sorted(root.rglob(filename))]  # Stable path ordering avoids ranking records by observed performance.
 
 
@@ -93,7 +94,11 @@ def create_reports(root: Path, output: Path, pdf: bool = True) -> dict:
         "It is not a post-hoc estimate from observed KID differences. Six pairs were retained despite low moderate-effect power "
         "because the 24-hour budget defines an exploratory study. Common Gaussian draws are shifted across effect scenarios; "
         "all 64 sign assignments are enumerated for every simulated study. The null rejection rate is below 0.05 because "
-        "the exact test is discrete.\n\n```json\n" + json.dumps(power, indent=2) + "\n```\n\n"
+        "the exact test is discrete. An analytical cross-check added during implementation uses the fact that six nonzero "
+        "differences yield a two-sided minimum p-value of 2/64; the next level is 4/64. At alpha 0.05, rejection therefore "
+        "requires all six signs to agree. For independent N(d,1) differences the exact power is Phi(d)^6 + Phi(-d)^6, "
+        "and null size is 0.03125. This cross-check does not change the pre-selected seed count or stopping rule.\n\n```json\n"
+        + json.dumps(power, indent=2) + "\n```\n\n"
         "Source: [SciPy permutation-test documentation](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.permutation_test.html).\n",
         encoding="utf-8")  # Complete assumptions and outcomes without an implied empirical advantage.
     documents.append(power_document)  # The planning experiment also receives a reproducible PDF.

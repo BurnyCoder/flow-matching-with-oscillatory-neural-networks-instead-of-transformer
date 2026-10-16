@@ -16,6 +16,8 @@ The matching factory creates reference parameter counts under a restored RNG con
 
 Snapshots occur only after complete optimizer/EMA updates. They include trainable weights, EMA weights and averaging count, AdamW state, data permutation/cursor/epoch, flow-generator state, global CPU/CUDA RNG states, cumulative training seconds, steps, full configuration, dataset hash, and all source revisions used by resumed segments. Checkpoint loading requests `weights_only=True`. Atomic rename protects the previous complete checkpoint against interrupted writes. A failure in the middle of accumulation retains the previous safe snapshot; lost work is still counted by the budget ledger.
 
+Resume also reads the latest failed-run elapsed time, so recovering older weights does not refund known discarded computation. If a process was hard-killed with an unclosed GPU reservation, the original run horizon is conservatively spent and its checkpoint remains incomplete. The original time-limited arm cannot silently restart from its older saved clock. An explicitly extended standalone configuration is a different, non-primary experiment. Failed compatibility checks do not overwrite the previous configuration or dataset manifest.
+
 Ordinary resume compares the saved scientific configuration and dataset hash. Only stopping limits and logging/checkpoint cadence may differ at the internal API boundary; the CLI exposes stopping-limit overrides. Cross-device training resumption is not an exact-resume guarantee. Exported EMA sampling on CPU is supported independently of the training device.
 
 ## Budget and failure semantics

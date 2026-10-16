@@ -5,12 +5,14 @@ https://pythonot.github.io/gen_modules/ot.sliced.html; https://arxiv.org/abs/180
 """
 
 import json  # Loads the final training status used to identify primary-eligible checkpoints.
+import os  # Reads the configured CPU thread limit for NumPy/SciPy metric reductions.
 import time  # Measures metric overhead separately from generation latency.
 from pathlib import Path  # Groups one complete evaluation attempt.
 
 import ot  # Reuses POT for the explicitly non-Inception MNIST pixel-space diagnostic.
 import torch  # Supplies typed populations and held-out tensor indexing.
 import torch_fidelity  # Reuses the reference-compatible Inception preprocessing and unbiased KID estimator.
+from threadpoolctl import threadpool_limits  # Controls native BLAS pools: https://github.com/joblib/threadpoolctl.
 from torch.utils.data import Dataset  # Implements the documented torch-fidelity image-population contract.
 
 from ofm.artifacts import (  # Shared provenance and logging.
@@ -56,6 +58,7 @@ class ImagePopulation(Dataset):
         return self.images[index]  # Returns native-resolution pixels for torch-fidelity's shared preprocessing.
 
 
+@threadpool_limits.wrap(limits=int(os.environ.get("OFM_CPU_THREADS", "4")), user_api="blas")  # Prevent metric CPU oversubscription.
 def distribution_metrics(generated, real, dataset: str, device: str, seed: int, cache_root: Path,
                          real_cache: str | None = None, batch_size: int = 32) -> dict:
     """Local: compute appropriate distribution diagnostics. Global: use Inception KID only for the CIFAR primary comparison."""
@@ -98,7 +101,8 @@ def evaluate_run(source: Path, output: Path | None = None, count: int = 5000, se
                 "intervention": intervention, "generated_count": count, "real_count": len(real), "sampling_seed": seed,
                 "metric_seed": seed, "nfe": nfe, "kid_subsets": 100, "kid_subset_size": min(1000, count, len(real)),
                 "checkpoint_sha256": file_hash(checkpoint), "data_sha256": data.manifest["cache_sha256"],
-                "source_revision": git_revision(), "primary_eligible": primary, "device": device}  # Full measurement provenance.
+                "source_revision": git_revision(), "primary_eligible": primary, "device": device,
+                "blas_threads": int(os.environ.get("OFM_CPU_THREADS", "4"))}  # Full measurement provenance and native thread policy.
     write_json(output / "evaluation_config.json", settings)  # Preserve an attempted experiment before any GPU operation.
     event("evaluation_start", **settings)  # Logs all settings rather than only a favorable final score.
     try:  # Retain an explicit failure artifact for incomplete evaluations.
