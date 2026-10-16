@@ -26,7 +26,7 @@ from ofm.study import evaluate_entry  # Reuses immutable evaluation attempts and
 from ofm.training_state import configure_runtime, initialize_model  # Constructs the original seeded initialization.
 
 
-def untrained_control(directory: Path, family: str, device: str) -> None:
+def untrained_control(directory: Path, family: str, device: str, *, split: str = "test", count: int = 5000) -> None:
     """Local: save an unoptimized generator. Global: establish whether learned models improve over their initial image distribution."""
     if not (directory / "checkpoint.pt").exists():  # Reuse the same initial weights on resume.
         config = TrainConfig(model=ModelConfig(family=family), device=device)  # Same default architecture and seed as the first pair.
@@ -37,7 +37,7 @@ def untrained_control(directory: Path, family: str, device: str) -> None:
         write_json(directory / "training.json", {"status": "untrained", "dataset": "cifar10", "family": family, "seed": 101,
                                                 "step": 0, "train_seconds": 0, "parameters": parameter_count(model),
                                                 "source_revisions": [git_revision()]})  # Cannot qualify for the primary analysis.
-    evaluate_entry(directory, directory / "evaluations/test", device)  # Uses exactly the same test population and sampling budget.
+    evaluate_entry(directory, directory / f"evaluations/{split}", device, split=split, count=count)  # Validation supports preflight checks.
 
 
 def real_control(root: Path, device: str) -> None:

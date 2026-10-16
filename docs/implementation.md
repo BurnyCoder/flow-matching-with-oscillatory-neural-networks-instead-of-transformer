@@ -36,6 +36,8 @@ The training stopping check occurs at complete optimizer boundaries, so measured
 
 Numerical determinism is tested on the same runtime. CPU and CUDA random generators need not produce the same noise for the same integer seed, so cross-device sample equality is not claimed. Exact same-device identity-intervention outputs and repeated metric controls are checked separately. KID subset variability, seed uncertainty, and statistical assumptions are specified in the protocol; the reports do not substitute one for another.
 
+A small untrained CIFAR model can exercise Inception metrics against validation data before the final comparison. The internal `study_evaluation.untrained_control(..., split="validation", count=128)` reuses the same checkpoint/evaluation path; it is a numerical preflight with a small KID subset size, not a primary quality estimate. Final untrained controls retain the pre-specified 5,000 samples against official test data.
+
 ## Reporting and release boundaries
 
 `reporting.py` discovers only the requested artifact root, checks that there is at most one eligible primary evaluation per model/seed, and requires all six pairs before primary inference. `report_text.py` composes role-aware evidence records; `report_figures.py` plots observed points and renders Markdown through Pandoc → Typst → PDF. Planning power is reproduced with common Gaussian random numbers across the fixed effect-size scenarios. Reports may be generated while work is incomplete and must say so.
