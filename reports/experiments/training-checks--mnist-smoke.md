@@ -1,25 +1,32 @@
-# Diagnostic: checks/fixed-batch
+# Training: checks/mnist-smoke
 
 ## Purpose and interpretation
 
-This fixed-batch probe checks optimization, finite geometry, and deterministic predictions. It intentionally memorizes 16 training examples with fixed noise and times. Passing does not establish generalization or generative quality.
+This run fits the pre-specified velocity MSE objective. Completion and held-out error establish execution; generation quality requires its separate evaluation. No checkpoint was selected by best validation or test score.
 
 ## Recorded evidence
 
 ```json
 {
-  "status": "completed",
-  "steps": 500,
-  "initial_loss": 2.2557530403137207,
-  "final_loss": 0.0006026483024470508,
-  "loss_ratio": 0.00026716058525770044,
-  "deterministic": true,
-  "norm_max_error": 5.960464477539063e-08,
-  "tangent_max_error": 3.0547380447387695e-07,
-  "seconds": 42.347297642998456,
-  "passed": true,
-  "id": "checks/fixed-batch",
-  "artifact": "runs/study/checks/fixed-batch/diagnostic.json"
+  "status": "step_limit",
+  "dataset": "mnist",
+  "family": "onn",
+  "seed": 101,
+  "step": 100,
+  "train_seconds": 33.96222671099531,
+  "parameters": 1289488,
+  "device": "cuda",
+  "initial_validation_mse": 2.111804723739624,
+  "final_validation_mse": 2.0086912736296654,
+  "images_per_second": 376.88930437108195,
+  "source_revisions": [
+    "a3dd6228d6e9296a8555102d0b854b53e4a547aa"
+  ],
+  "peak_memory_bytes": 203779584,
+  "checkpoint_sha256": "8f38d4c79f09a651583cc67b6596ab438a75269ad8fcb6a89db4135257a2a9db",
+  "failure": null,
+  "id": "checks/mnist-smoke",
+  "artifact": "runs/checks/mnist-smoke/training.json"
 }
 ```
 
@@ -42,14 +49,14 @@ This fixed-batch probe checks optimization, finite geometry, and deterministic p
   "dataset": "mnist",
   "seed": 101,
   "device": "cuda",
-  "batch_size": 16,
-  "microbatch": 16,
+  "batch_size": 128,
+  "microbatch": 32,
   "learning_rate": 0.0003,
   "weight_decay": 0.01,
   "clip_grad": 1.0,
   "ema_decay": 0.999,
-  "minutes": 45.0,
-  "max_steps": 0,
+  "minutes": 3.0,
+  "max_steps": 100,
   "validation_size": 5000,
   "data_root": "data",
   "runs_root": "runs",

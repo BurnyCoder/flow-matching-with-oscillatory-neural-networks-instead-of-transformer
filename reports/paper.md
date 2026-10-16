@@ -2,7 +2,7 @@
 
 ## Abstract
 
-We implement an attention-free, AKOrN-inspired velocity network for unconditional image generation and a reproducible comparison with a small DiT-style transformer and recurrent convolutional control. The design isolates backbone computation while sharing a straight conditional flow-matching path, data preparation, optimizer, and numerical sampler. The planned primary comparison uses six paired CIFAR-10 seeds, 45 minutes per model, 5,000 generated images per seed, and 32 velocity evaluations. **Primary comparison incomplete; no claim about an oscillator advantage is supported.** At report generation, 0 training/control records and 0 completed evaluations were available. This is an exploratory local-compute study, not a claim of state-of-the-art performance.
+We implement an attention-free, AKOrN-inspired velocity network for unconditional image generation and a reproducible comparison with a small DiT-style transformer and recurrent convolutional control. The design isolates backbone computation while sharing a straight conditional flow-matching path, data preparation, optimizer, and numerical sampler. The planned primary comparison uses six paired CIFAR-10 seeds, 45 minutes per model, 5,000 generated images per seed, and 32 velocity evaluations. **Primary comparison incomplete; no claim about an oscillator advantage is supported.** At report generation, 2 training/control records and 2 completed evaluations were available. This is an exploratory local-compute study, not a claim of state-of-the-art performance.
 
 ## Context, motivation, and introduction
 
@@ -50,9 +50,9 @@ The allocation is at most 1.5 GPU-hours for checks/pilot, 13.5 training hours fo
 
 ### Measurement and pre-specified analysis
 
-The primary outcome is unscaled KID between 5,000 generated CIFAR images and all 10,000 official test images, with 100 subsets of size 1,000 and identical torch-fidelity Inception preprocessing and metric RNG. Generated floats are clamped to [-1,1], mapped to [0,255], rounded, and converted to uint8; complete unclipped tensors and clipping fractions remain available. Real images retain their original uint8 values. torch-fidelity owns resizing and feature normalization for both populations. Negative unbiased KID estimates are retained. FID is secondary and its generated/real sample counts accompany every value. MNIST uses 128-projection pixel-space sliced Wasserstein distance only as a pilot diagnostic; it is not mislabeled as semantic image quality.
+The primary outcome is unscaled KID between 5,000 generated CIFAR images and all 10,000 official test images, with 100 subsets of size 1,000 and identical torch-fidelity Inception preprocessing and metric RNG. Generation and metric seed 20261016 is fixed across arms and training seeds. Generated floats are clamped to [-1,1], mapped to [0,255], rounded, and converted to uint8; complete unclipped tensors and clipping fractions remain available. Real images retain their original uint8 values. torch-fidelity owns resizing and feature normalization for both populations. Negative unbiased KID estimates are retained. FID is secondary and its generated/real sample counts accompany every value. MNIST uses 128-projection pixel-space sliced Wasserstein distance only as a pilot diagnostic; it is not mislabeled as semantic image quality. Velocity MSE uses the first fixed 512 surviving validation indices with a separate, training-seed-derived supervision stream, paired across architectures. Native BLAS metric threads are bounded by the recorded CPU-thread setting (default four).
 
-For six primary seed pairs, report each KID difference, its mean, an approximate two-sided 95% Student-t interval with five degrees of freedom, and an exact two-sided paired sign-flip p-value at alpha 0.05. The t interval assumes approximately normal independent seed differences; sign-flip inference requires sign exchangeability/symmetry under the null. Six seeds cannot establish these assumptions. KID subset SD concerns one fixed image population and is not a standard error across trained models. The shared dataset/evaluator limits external generalization. If any declared primary pair is missing, report available observations and incompleteness without complete-study inference. Ablations, fixed-seed cost curves, and interventions are descriptive secondary analyses without multiplicity-adjusted confirmatory claims.
+For six primary seed pairs, report each KID difference, its mean, an approximate two-sided 95% Student-t interval with five degrees of freedom, and an exact two-sided paired sign-flip p-value at alpha 0.05. The t interval assumes approximately normal independent seed differences; sign-flip inference requires sign exchangeability/symmetry under the null. Six seeds cannot establish these assumptions. KID subset SD concerns one fixed image population and is not a standard error across trained models. Intervals condition on the fixed data split, test population, generation noise, metric RNG, and hardware. The shared dataset/evaluator limits external generalization. If any declared primary pair is missing, report available observations and incompleteness without complete-study inference. Ablations, fixed-seed cost curves, and interventions are descriptive secondary analyses without multiplicity-adjusted confirmatory claims.
 
 The pre-training power calculation used 20,000 simulated Gaussian six-difference samples, all 64 sign assignments, and seed 20261016. At standardized effect 0.8, simulated rejection probability was 0.2406 (Monte Carlo standard error 0.0030). The first study is therefore exploratory and underpowered for moderate effects. Neither sample count nor training duration is extended to obtain significance. Measured throughput, synchronized generation latency, peak allocated GPU memory, parameter counts, and validation velocity MSE supplement distribution metrics. The seed-101 quality-cost curve uses 8,16,32,64 evaluations; no best seed is selected.
 
@@ -68,11 +68,17 @@ Primary paired inference is unavailable because the study is incomplete.
 
 ### Training and capacity
 
-No measurements are available yet.
+| Run | Status | Parameters | Updates | Train seconds | Images/s | Validation MSE |
+| --- | --- | --- | --- | --- | --- | --- |
+| checks/mnist-smoke | step_limit | 1.28949e+06 | 100 | 33.9622 | 376.889 | 2.00869 |
+| study/pilot/mnist-onn-s101 | completed | 1.28949e+06 | 3736 | 1200.25 | 398.425 | 0.231511 |
 
 ### Quality and sampling cost
 
-No measurements are available yet.
+| Evaluation | Generated/real N | NFE | KID mean | KID subset SD | FID | Pixel SWD | ms/image |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| checks/mnist-smoke/validation-check | 128/5000 | 32 | — | — | — | 1.10101 | 20.9486 |
+| study/pilot/mnist-onn-s101/evaluations/validation | 512/5000 | 32 | — | — | — | 0.0714237 | 27.8529 |
 
 KID subset SD in the table is metric subset variability, not a training-seed confidence interval. FID is reported only with its finite generated/real population sizes. A missing entry denotes an unmeasured quantity. Status `untrained` is an explicit control and `step_limit` is a development run; neither qualifies as a final 45-minute checkpoint.
 
@@ -80,13 +86,13 @@ KID subset SD in the table is metric subset variability, not a training-seed con
 
 | Check | Initial MSE | Final MSE | Ratio | Passed |
 | --- | --- | --- | --- | --- |
-| checks/fixed-batch | 2.25575 | 0.000602648 | 0.000267161 | 1 |
+| study/checks/fixed-batch | 2.25575 | 0.000602648 | 0.000267161 | 1 |
 
 No measurements are available yet.
 
 ### Failures and compute accounting
 
-Recorded failed attempts: 0. Cumulative charged GPU seconds: 1348.76. An active reservation, if present, is charged in advance and is not all completed work. Ledger history distinguishes successful completion, exceptions, and interrupted reservations. Individual reports retain exact errors and provenance; a later repair does not erase earlier attempts.
+Recorded failed attempts: 1. Cumulative charged GPU seconds: 2570.1. An active reservation, if present, is charged in advance and is not all completed work. Ledger history distinguishes successful completion, exceptions, and interrupted reservations. Individual reports retain exact errors and provenance; a later repair does not erase earlier attempts.
 
 ## Discussion and implications
 

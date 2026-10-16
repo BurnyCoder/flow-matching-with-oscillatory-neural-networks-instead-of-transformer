@@ -32,6 +32,8 @@ Evaluation retains raw float samples before metric clipping/quantization. `Image
 
 Sampling timing includes generation and host transfer after warmup, excluding model loading and warmup. CUDA synchronization brackets timing. Training throughput is examples processed divided by accumulated in-loop wall time, including periodic checkpoint/log overhead. Peak memory means PyTorch allocated memory, not total device occupancy from other applications. Fixed wall time naturally permits more updates for faster architectures.
 
+The training stopping check occurs at complete optimizer boundaries, so measured durations can exceed the nominal per-run horizon by the final minibatch. This small granularity and other setup/cleanup costs consume contingency within the independently enforced total allocation; reported durations are the actual values, not rounded back to the requested limit. BLAS pools for metrics and power calculations are limited with threadpoolctl to avoid native-library oversubscription.
+
 Numerical determinism is tested on the same runtime. CPU and CUDA random generators need not produce the same noise for the same integer seed, so cross-device sample equality is not claimed. Exact same-device identity-intervention outputs and repeated metric controls are checked separately. KID subset variability, seed uncertainty, and statistical assumptions are specified in the protocol; the reports do not substitute one for another.
 
 ## Reporting and release boundaries
