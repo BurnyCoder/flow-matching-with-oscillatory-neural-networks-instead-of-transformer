@@ -2,7 +2,7 @@
 
 ## Abstract
 
-We implement an attention-free, AKOrN-inspired velocity network for unconditional image generation and a reproducible comparison with a small DiT-style transformer and recurrent convolutional control. The design isolates backbone computation while sharing a straight conditional flow-matching path, data preparation, optimizer, and numerical sampler. The planned primary comparison uses six paired CIFAR-10 seeds, 45 minutes per model, 5,000 generated images per seed, and 32 velocity evaluations. **Primary comparison incomplete; no claim about an oscillator advantage is supported.** At report generation, 2 training/control records and 2 completed evaluations were available. This is an exploratory local-compute study, not a claim of state-of-the-art performance.
+We implement an attention-free, AKOrN-inspired velocity network for unconditional image generation and a reproducible comparison with a small DiT-style transformer and recurrent convolutional control. The design isolates backbone computation while sharing a straight conditional flow-matching path, data preparation, optimizer, and numerical sampler. The planned primary comparison uses six paired CIFAR-10 seeds, 45 minutes per model, 5,000 generated images per seed, and 32 velocity evaluations. **Primary comparison incomplete; no claim about an oscillator advantage is supported.** At report generation, 5 training/control records and 5 completed evaluations were available. This is an exploratory local-compute study, not a claim of state-of-the-art performance.
 
 ## Context, motivation, and introduction
 
@@ -70,14 +70,20 @@ Primary paired inference is unavailable because the study is incomplete.
 
 | Run | Status | Parameters | Updates | Train seconds | Images/s | Validation MSE |
 | --- | --- | --- | --- | --- | --- | --- |
+| checks/cifar10-metric-smoke | untrained | 1.29771e+06 | 0 | 0 | — | — |
 | checks/mnist-smoke | step_limit | 1.28949e+06 | 100 | 33.9622 | 376.889 | 2.00869 |
+| study/pilot/mnist-conv-s101 | completed | 1.28846e+06 | 5245 | 1200.05 | 559.445 | 0.215197 |
+| study/pilot/mnist-dit-s101 | completed | 1.29064e+06 | 6778 | 1200.04 | 722.965 | 0.203531 |
 | study/pilot/mnist-onn-s101 | completed | 1.28949e+06 | 3736 | 1200.25 | 398.425 | 0.231511 |
 
 ### Quality and sampling cost
 
 | Evaluation | Generated/real N | NFE | KID mean | KID subset SD | FID | Pixel SWD | ms/image |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| checks/cifar10-metric-smoke/evaluations/validation | 128/5000 | 32 | 0.609741 | 0.0059603 | 487.666 | — | 21.3627 |
 | checks/mnist-smoke/validation-check | 128/5000 | 32 | — | — | — | 1.10101 | 20.9486 |
+| study/pilot/mnist-conv-s101/evaluations/validation | 512/5000 | 32 | — | — | — | 0.063441 | 13.336 |
+| study/pilot/mnist-dit-s101/evaluations/validation | 512/5000 | 32 | — | — | — | 0.0617331 | 9.42476 |
 | study/pilot/mnist-onn-s101/evaluations/validation | 512/5000 | 32 | — | — | — | 0.0714237 | 27.8529 |
 
 KID subset SD in the table is metric subset variability, not a training-seed confidence interval. FID is reported only with its finite generated/real population sizes. A missing entry denotes an unmeasured quantity. Status `untrained` is an explicit control and `step_limit` is a development run; neither qualifies as a final 45-minute checkpoint.
@@ -88,11 +94,14 @@ KID subset SD in the table is metric subset variability, not a training-seed con
 | --- | --- | --- | --- | --- |
 | study/checks/fixed-batch | 2.25575 | 0.000602648 | 0.000267161 | 1 |
 
-No measurements are available yet.
+| Control | Recorded result |
+| --- | --- |
+| checks/cifar10-metric-smoke/evaluations/validation/repeat | {"repeat_max_absolute_difference": 0.0} |
+| study/pilot/mnist-onn-s101/cpu-public-check | {} |
 
 ### Failures and compute accounting
 
-Recorded failed attempts: 1. Cumulative charged GPU seconds: 2570.1. An active reservation, if present, is charged in advance and is not all completed work. Ledger history distinguishes successful completion, exceptions, and interrupted reservations. Individual reports retain exact errors and provenance; a later repair does not erase earlier attempts.
+Recorded failed attempts: 1. Cumulative charged GPU seconds: 3760.98. An active reservation, if present, is charged in advance and is not all completed work. Ledger history distinguishes successful completion, exceptions, and interrupted reservations. Individual reports retain exact errors and provenance; a later repair does not erase earlier attempts.
 
 ## Discussion and implications
 
