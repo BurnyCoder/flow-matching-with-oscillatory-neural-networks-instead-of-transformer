@@ -31,6 +31,7 @@ from ofm.training_state import (  # Keeps construction and persistence separate 
     initialize_model,  # Constructs a seeded backbone.
     optimizer_and_ema,  # Shares optimization machinery across arms.
     restore,  # Restores complete optimizer-boundary state.
+    resume_timing,  # Retains compute spent after a lost checkpoint or interrupted reservation.
     snapshot,  # Captures complete optimizer-boundary state.
 )
 
@@ -82,10 +83,17 @@ def train_model(config, data, directory: Path, resume: bool = False) -> dict:
     revisions = list(prior["source_revisions"]) if prior else []  # Preserves provenance of earlier segments.
     if git_revision() not in revisions:  # A pushed repair is visible in the run's source history.
         revisions.append(git_revision())  # Does not overwrite the revision that produced the initial checkpoint.
-    previous_seconds, step = (prior["train_seconds"], prior["step"]) if prior else (0.0, 0)  # Resume cumulative progress.
+    previous_seconds, interrupted_budget = resume_timing(prior, config, directory) if prior else (0.0, False)  # Reconcile all known spending.
+    step = prior["step"] if prior else 0  # Learning-state progress may lag already-spent time after a failed update.
+    if interrupted_budget:  # A hard-killed reservation cannot buy extra optimization under the original time limit.
+        summary = {"status": "budget_exhausted", "dataset": config.dataset, "family": config.model.family, "seed": config.seed,
+                   "step": step, "train_seconds": previous_seconds, "parameters": parameter_count(model), "device": config.device,
+                   "source_revisions": revisions, "checkpoint_sha256": file_hash(checkpoint_path),
+                   "failure": "Unclosed reservation conservatively spent the original run budget; checkpoint retained as incomplete"}
+        write_json(directory / "training.json", summary)  # Preserve the partial checkpoint without relabeling it a final-budget model.
+        event("training_budget_stop", **summary)  # Explain the stop in the same persistent run log.
+        return summary  # No GPU allocation or further training is authorized by this exhausted run configuration.
     requested = max(0.0, config.minutes * 60 - previous_seconds) + 60  # Reserves bounded final checkpoint/validation overhead.
-    write_json(directory / "config.json", config.to_dict())  # Records realized defaults and the matched transformer width.
-    write_json(directory / "data_manifest.json", data.manifest)  # Preserves complete split identities and audit counts.
     event("training_configuration", **config.to_dict(), resume=resume, source_revisions=revisions)  # Logs full nonsecret settings.
     with BudgetSession(config.budget_path, config.budget_hours * 3600, requested, str(directory),
                        enabled=config.device.startswith("cuda")) as budget:  # Accounts for all GPU work in this phase.
@@ -95,6 +103,8 @@ def train_model(config, data, directory: Path, resume: bool = False) -> dict:
         generator = torch.Generator(device=config.device).manual_seed(seed_for(config.seed, "flow"))  # Dedicated target RNG.
         if prior is not None:  # A resumed run restores its exact optimizer-boundary state.
             restore(prior, config, model, optimizer, ema, stream, generator, data.manifest["cache_sha256"])  # Validates compatibility.
+        write_json(directory / "config.json", config.to_dict())  # Commit settings only after a resumed checkpoint passes validation.
+        write_json(directory / "data_manifest.json", data.manifest)  # Failed compatibility checks cannot overwrite original provenance.
         write_json(directory / "environment.json", environment_record(config.device))  # Captures actual dependency/hardware versions.
         if config.device.startswith("cuda"):  # GPU telemetry excludes unrelated earlier process allocations.
             torch.cuda.reset_peak_memory_stats(config.device)  # Measures peak allocation during this run segment.
@@ -132,8 +142,8 @@ def train_model(config, data, directory: Path, resume: bool = False) -> dict:
             status, failure = "failed", error  # Retains the actual failure for the caller after artifact cleanup.
             logging.getLogger("ofm").exception("Training stopped with an error")  # Full traceback, without text truncation.
         finally:  # Save only internally consistent state, even when a later operation failed.
+            train_seconds = previous_seconds + time.monotonic() - started  # Charge even a partial failed update as occupied training time.
             if at_boundary:  # Partial optimizer/microbatch states are discarded in favor of the previous valid checkpoint.
-                train_seconds = previous_seconds + time.monotonic() - started  # Records the complete segment's training time.
                 save_checkpoint(checkpoint_path, snapshot(config, model, optimizer, ema, stream, generator, step, train_seconds,
                                                          data.manifest["cache_sha256"], revisions))  # Keeps the last completed update.
         final_loss = validation_loss(ema.module, data, config.seed, config.device, config.microbatch) if failure is None else None

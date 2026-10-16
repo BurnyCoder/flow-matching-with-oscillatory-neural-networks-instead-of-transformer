@@ -5,9 +5,11 @@ https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.t.html.
 """
 
 import itertools  # Enumerates all paired sign assignments for the reproducible planning simulation.
+import os  # Uses the same declared CPU thread budget as the rest of the local pipeline.
 
 import numpy as np  # Represents the pre-aligned seed populations as finite numerical arrays.
 from scipy import stats  # Uses maintained implementations of exact permutations and Student-t quantiles.
+from threadpoolctl import threadpool_limits  # Avoids BLAS oversubscription: https://github.com/joblib/threadpoolctl.
 
 
 def paired_comparison(oscillator, transformer) -> dict:
@@ -29,6 +31,7 @@ def paired_comparison(oscillator, transformer) -> dict:
     return result  # Interpretation belongs in reports alongside completeness and distributional assumptions.
 
 
+@threadpool_limits.wrap(limits=int(os.environ.get("OFM_CPU_THREADS", "4")), user_api="blas")  # Scope native threads to this calculation.
 def planning_power() -> dict:
     """Local: reproduce the pre-training Gaussian simulation. Global: state the study's low power without post-hoc sample expansion."""
     trials, pairs = 20000, 6  # Frozen before observing any trained-model comparison.
@@ -40,6 +43,8 @@ def planning_power() -> dict:
         null_means = differences @ signs.T / pairs  # Exact conditional randomization distribution for each simulated study.
         pvalues = (np.abs(null_means) >= np.abs(differences.mean(axis=1))[:, None] - 1e-12).mean(axis=1)  # Inclusive extreme tails.
         power = float((pvalues <= 0.05).mean())  # Uses the same fixed two-sided alpha as the experimental analysis.
-        results.append({"standardized_effect": effect, "power": power, "monte_carlo_se": float(np.sqrt(power * (1 - power) / trials))})
+        exact = float(stats.norm.cdf(effect)**pairs + stats.norm.cdf(-effect)**pairs)  # Six-pair alpha .05 rejects only all-equal signs.
+        results.append({"standardized_effect": effect, "power": power, "monte_carlo_se": float(np.sqrt(power * (1 - power) / trials)),
+                        "exact_gaussian_power": exact})  # Analytical cross-check is independent of Monte Carlo sampling error.
     return {"seed": 20261016, "trials": trials, "pairs": pairs, "alpha": 0.05, "model": "independent Gaussian paired differences",
             "common_random_numbers_across_effects": True, "results": results}  # Fully specifies how to reproduce the planning evidence.
