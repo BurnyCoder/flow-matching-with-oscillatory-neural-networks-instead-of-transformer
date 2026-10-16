@@ -4,6 +4,8 @@ Sources: https://docs.python.org/3/library/fcntl.html; https://docs.pytorch.org/
 """
 
 import json  # Inspects persisted, reviewable ledger state.
+import subprocess  # Exercises the hard deadline in an isolated process rather than terminating pytest.
+import sys  # Selects the active test environment for the isolated worker.
 
 import pytest  # Checks rejection and intentional failure paths.
 import torch  # Supplies deterministic sampling fixtures.
@@ -32,6 +34,17 @@ def test_budget_cannot_be_reset_or_overbooked(tmp_path):
         pytest.fail("exhausted budget was accepted")  # The body must remain unreachable.
     with pytest.raises(ValueError), BudgetSession(path, 20, 2, "reset"):  # Rejects silently increasing the existing cap.
         pytest.fail("budget limit was silently changed")  # Guard against hidden budget renewal.
+
+
+def test_budget_deadline_terminates_a_blocked_worker(tmp_path):
+    """Local: simulate a call without cooperative checks. Global: native metrics cannot ignore the persistent GPU cap."""
+    script = ("import time; from pathlib import Path; from ofm.budget import BudgetSession; "
+              f"session=BudgetSession(Path({str(tmp_path / 'budget.json')!r}), 1, 1, 'blocked'); "
+              "session.__enter__(); time.sleep(20)")  # A sleeping child stands in for an unresponsive numerical call.
+    result = subprocess.run([sys.executable, "-c", script], timeout=15, check=False)  # Bounds the test independently too.
+    assert result.returncode == -9  # The separate guard delivers SIGKILL rather than relying on Python checkpoints.
+    ledger = json.loads((tmp_path / "budget.json").read_text())  # Abrupt exit must retain conservative accounting.
+    assert ledger["charged_seconds"] == 1 and ledger["active"] is not None  # No refund for an interrupted reservation.
 
 
 def test_stream_resume_matches_uninterrupted():

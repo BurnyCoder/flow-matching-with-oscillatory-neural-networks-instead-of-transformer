@@ -7,6 +7,8 @@ Reservations are charged before execution and unused time is refunded only on an
 import fcntl  # Prevents concurrent commands from spending the same remaining allocation.
 import json  # Keeps the cumulative ledger human-reviewable.
 import os  # Records the process owning a reservation.
+import subprocess  # Runs an independent deadline guard even if a native metric call blocks.
+import sys  # Selects the same local Python environment for the lightweight guard.
 import time  # Monotonic elapsed time is immune to wall-clock adjustments.
 from pathlib import Path  # Stores the lock alongside the experiment ledger.
 
@@ -27,6 +29,7 @@ class BudgetSession:
         self.handle = None  # The lock is acquired only when work enters the context.
         self.start = 0.0  # Actual elapsed time starts after a successful reservation.
         self.reserved = self.requested  # CPU-only sessions retain their requested wall-time deadline.
+        self.watchdog = None  # CPU-only operations do not need a GPU-cap termination process.
 
     def __enter__(self):
         """Local: atomically reserve available time. Global: multiple runs cannot overbook the cumulative cap."""
@@ -55,6 +58,10 @@ class BudgetSession:
                 self.handle = None  # Prevents later double-close attempts.
                 raise  # Let the command record the actual failure.
         self.start = time.monotonic()  # Measures occupied time, including GPU stalls and checkpoint work.
+        if self.enabled:  # Only GPU reservations need process-level enforcement of the authorized ceiling.
+            timeout = max(0, self.reserved - min(1.0, self.reserved * 0.1))  # Leaves a small process-termination margin.
+            self.watchdog = subprocess.Popen([sys.executable, "-m", "ofm.deadline", str(os.getpid()), str(timeout)],
+                                             stdin=subprocess.PIPE)  # Closing this pipe cancels the independent deadline.
         return self  # Callers check remaining time at bounded computation boundaries.
 
     @property
@@ -70,6 +77,9 @@ class BudgetSession:
     def __exit__(self, exc_type, exc_value, traceback):
         """Local: refund unused reserved time. Global: completed work remains charged across every future restart."""
         if self.enabled and self.handle is not None:  # CPU-only operations leave the GPU ledger untouched.
+            if self.watchdog is not None:  # Clean exits cancel the guard before refunding reserved time.
+                self.watchdog.stdin.close()  # EOF wakes the guard immediately without an active polling loop.
+                self.watchdog.wait(timeout=5)  # Reaps the helper process while the reservation remains charged.
             elapsed = time.monotonic() - self.start  # Includes cleanup performed inside the context.
             self.ledger["charged_seconds"] += elapsed - self.reserved  # Refunds unused time; records overruns honestly.
             record = {**self.ledger["active"], "elapsed_seconds": elapsed,

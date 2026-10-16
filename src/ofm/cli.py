@@ -78,11 +78,8 @@ def training_arguments(args) -> tuple[TrainConfig, Path | None, bool]:
     return config, args.run_dir, False  # New runs get a timestamped directory unless explicitly named.
 
 
-def main() -> None:
-    """Local: load configuration and dispatch a phase. Global: the CLI remains a thin entry point to reusable modules."""
-    load_dotenv(Path.cwd() / ".env")  # Does not search parent directories or unrelated projects.
-    os.environ.setdefault("HF_HOME", str(Path.cwd() / ".cache/huggingface"))  # Keeps Hub cache and optional auth workspace-local.
-    os.environ.setdefault("TORCH_HOME", str(Path.cwd() / ".cache/torch"))  # Keeps evaluator weight downloads in the checkout.
+def dispatch() -> None:
+    """Local: dispatch a configured phase. Global: every command runs inside the shared complete terminal transcript."""
     args = parser().parse_args()  # Validates syntax before downloading data or allocating compute.
     from ofm import pipeline  # Imports the heavy numerical stack only after parsing and cache configuration.
     if args.command == "train":  # Named phase calls keep implementation details below this wrapper.
@@ -100,6 +97,16 @@ def main() -> None:
     else:  # argparse guarantees the remaining command is the explicit publication action.
         result = pipeline.publish(root=args.root, namespace=args.namespace, dry_run=args.dry_run)
     print(json.dumps(result, indent=2, allow_nan=False))  # Returns complete structured results without truncation.
+
+
+def main() -> None:
+    """Local: configure caches and transcript capture. Global: runtime output remains auditable after process exit."""
+    load_dotenv(Path.cwd() / ".env")  # Does not search parent directories or unrelated projects.
+    os.environ.setdefault("HF_HOME", str(Path.cwd() / ".cache/huggingface"))  # Keeps optional Hub authentication local.
+    os.environ.setdefault("TORCH_HOME", str(Path.cwd() / ".cache/torch"))  # Keeps evaluator downloads in the checkout.
+    from ofm.terminal import capture_terminal  # Imports after local environment defaults are established.
+    with capture_terminal(Path(os.environ.get("OFM_RUNS_ROOT", "runs"))):  # No text truncation in the persistent command log.
+        dispatch()  # Keeps CLI parsing, errors, and complete final results within one auditable invocation.
 
 
 if __name__ == "__main__":  # Supports python -m ofm.cli as well as the installed ofm executable.
