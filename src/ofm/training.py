@@ -11,13 +11,28 @@ from pathlib import Path  # Groups each run's configuration, evidence, and check
 import torch  # Optimizes the velocity regressor using automatic differentiation.
 from torch.nn import functional as F  # Reuses the standard mean-squared-error objective.
 
-from ofm.artifacts import event, file_hash, git_revision, save_checkpoint, seed_for, setup_logging, write_json  # Shared I/O.
+from ofm.artifacts import (  # Shared artifact and logging implementation.
+    event,  # Emits full structured progress records.
+    file_hash,  # Verifies the final saved checkpoint.
+    git_revision,  # Associates results with pushed source.
+    save_checkpoint,  # Commits optimizer state atomically.
+    seed_for,  # Separates paired randomness streams.
+    setup_logging,  # Shares timestamped file/terminal output.
+    write_json,  # Writes complete nonsecret manifests.
+)
 from ofm.budget import BudgetExhausted, BudgetSession  # All GPU work consumes the persistent allocation.
 from ofm.data import BatchStream  # Explicit cursor state makes optimizer-boundary resumption exact.
 from ofm.flow import flow_batch  # All architectures receive the same conditional-flow supervision.
 from ofm.models.factory import parameter_count  # Reports actual model capacity.
 from ofm.sampling import synchronize  # Ensures timing includes completed GPU operations.
-from ofm.training_state import configure_runtime, environment_record, initialize_model, optimizer_and_ema, restore, snapshot
+from ofm.training_state import (  # Keeps construction and persistence separate from the training loop.
+    configure_runtime,  # Applies reproducible device settings.
+    environment_record,  # Records actual dependency versions.
+    initialize_model,  # Constructs a seeded backbone.
+    optimizer_and_ema,  # Shares optimization machinery across arms.
+    restore,  # Restores complete optimizer-boundary state.
+    snapshot,  # Captures complete optimizer-boundary state.
+)
 
 
 @torch.inference_mode()
