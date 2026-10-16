@@ -42,7 +42,7 @@ uv run --no-sync ofm study --phase pilot
 uv run --no-sync ofm study --phase main
 uv run --no-sync ofm study --phase ablations
 uv run --no-sync ofm study --phase evaluate
-uv run --no-sync ofm report --root runs/study --output reports
+uv run --no-sync ofm report --root runs --output reports
 # Equivalent sequential orchestration from a fresh study: ofm study --phase all
 ```
 
@@ -104,6 +104,8 @@ uv run --no-sync ofm publish --root runs --namespace BurnyCoder
 ```
 
 Publication requires a Hub token authorized to create/write the selected account's model repositories and collection. Keep tokens in the local authentication store or an untracked `HF_TOKEN` environment setting; never put them in commands, Git, model cards, or logs. Dataset-specific repositories contain one directory per run, each loadable with `ofm sample --run /path/to/downloaded/run`. No LLM API key is required. Source data, `.venv`, `.env`, caches, raw runs, and export staging are excluded from Git.
+
+The public [Hugging Face collection](https://huggingface.co/collections/BurnyCoder/oscillatory-flow-matching-local-exploratory-study-6ad2aa5b3f5a7563a8018be2) groups released artifacts. Check each model card's role and status: a development or fixed-batch checkpoint is not a completed final-study generator.
 
 ## Verification and contribution
 

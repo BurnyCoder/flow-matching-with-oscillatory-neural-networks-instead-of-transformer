@@ -16,6 +16,8 @@ The matching factory creates reference parameter counts under a restored RNG con
 
 Snapshots occur only after complete optimizer/EMA updates. They include trainable weights, EMA weights and averaging count, AdamW state, data permutation/cursor/epoch, flow-generator state, global CPU/CUDA RNG states, cumulative training seconds, steps, full configuration, dataset hash, and all source revisions used by resumed segments. Checkpoint loading requests `weights_only=True`. Atomic rename protects the previous complete checkpoint against interrupted writes. A failure in the middle of accumulation retains the previous safe snapshot; lost work is still counted by the budget ledger.
 
+Resume also reads the latest failed-run elapsed time, so recovering older weights does not refund known discarded computation. If a process was hard-killed with an unclosed GPU reservation, the original run horizon is conservatively spent and its checkpoint remains incomplete. The original time-limited arm cannot silently restart from its older saved clock. An explicitly extended standalone configuration is a different, non-primary experiment. Failed compatibility checks do not overwrite the previous configuration or dataset manifest.
+
 Ordinary resume compares the saved scientific configuration and dataset hash. Only stopping limits and logging/checkpoint cadence may differ at the internal API boundary; the CLI exposes stopping-limit overrides. Cross-device training resumption is not an exact-resume guarantee. Exported EMA sampling on CPU is supported independently of the training device.
 
 ## Budget and failure semantics
@@ -30,7 +32,11 @@ Evaluation retains raw float samples before metric clipping/quantization. `Image
 
 Sampling timing includes generation and host transfer after warmup, excluding model loading and warmup. CUDA synchronization brackets timing. Training throughput is examples processed divided by accumulated in-loop wall time, including periodic checkpoint/log overhead. Peak memory means PyTorch allocated memory, not total device occupancy from other applications. Fixed wall time naturally permits more updates for faster architectures.
 
+The training stopping check occurs at complete optimizer boundaries, so measured durations can exceed the nominal per-run horizon by the final minibatch. This small granularity and other setup/cleanup costs consume contingency within the independently enforced total allocation; reported durations are the actual values, not rounded back to the requested limit. BLAS pools for metrics and power calculations are limited with threadpoolctl to avoid native-library oversubscription.
+
 Numerical determinism is tested on the same runtime. CPU and CUDA random generators need not produce the same noise for the same integer seed, so cross-device sample equality is not claimed. Exact same-device identity-intervention outputs and repeated metric controls are checked separately. KID subset variability, seed uncertainty, and statistical assumptions are specified in the protocol; the reports do not substitute one for another.
+
+A small untrained CIFAR model can exercise Inception metrics against validation data before the final comparison. The internal `study_evaluation.untrained_control(..., split="validation", count=128)` reuses the same checkpoint/evaluation path; it is a numerical preflight with a small KID subset size, not a primary quality estimate. Final untrained controls retain the pre-specified 5,000 samples against official test data.
 
 ## Reporting and release boundaries
 

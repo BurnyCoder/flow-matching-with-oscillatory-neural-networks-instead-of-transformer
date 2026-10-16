@@ -14,15 +14,21 @@ All networks generate unconditional images in pixel space. They share independen
 
 ## Training outcomes
 
-No measurements are available yet.
+| Run | Status | Parameters | Updates | Train seconds | Images/s | Validation MSE |
+| --- | --- | --- | --- | --- | --- | --- |
+| checks/mnist-smoke | step_limit | 1.28949e+06 | 100 | 33.9622 | 376.889 | 2.00869 |
+| study/pilot/mnist-onn-s101 | completed | 1.28949e+06 | 3736 | 1200.25 | 398.425 | 0.231511 |
 
 ## Distribution and cost measurements
 
-No measurements are available yet.
+| Evaluation | Generated/real N | NFE | KID mean | KID subset SD | FID | Pixel SWD | ms/image |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| checks/mnist-smoke/validation-check | 128/5000 | 32 | — | — | — | 1.10101 | 20.9486 |
+| study/pilot/mnist-onn-s101/evaluations/validation | 512/5000 | 32 | — | — | — | 0.0714237 | 27.8529 |
 
 ## Completeness
 
-Recorded diagnostics: 1. Recorded failed attempts: 0. Completed primary pairs: 0/6. Missing values mean unmeasured, not zero. Individual records and PDFs are in `experiments/`; raw records remain in the run directories and published artifact manifests.
+Recorded diagnostics: 1. Recorded failed attempts: 1. Completed primary pairs: 0/6. Missing values mean unmeasured, not zero. Individual records and PDFs are in `experiments/`; raw records remain in the run directories and published artifact manifests.
 
 ## Glossary
 

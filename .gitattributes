@@ -1,0 +1,5 @@
+# Generated scientific artifacts must not appear as textual source diffs.
+*.pdf binary
+*.png binary
+*.safetensors binary
+*.pt binary

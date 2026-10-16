@@ -129,6 +129,7 @@ def publish_study(root: Path, namespace: str = "BurnyCoder", dry_run: bool = Fal
                 shutil.copy2(existing, directory / name)  # Public records contain settings/accounting, not credentials.
         report_root = Path("reports")  # Public reports are an explicit independent artifact source, never arbitrary user files.
         report_names = {"paper.md", "paper.pdf", "experiments.md", "experiments.pdf", "analysis.json",
+                        "verification.md", "verification.pdf", "review.md", "review.pdf",  # Explicit development evidence, without broad copying.
                         "planning-power.md", "planning-power.pdf", "planning-power.json"}  # Complete synthesis and planning evidence.
         for path in report_root.rglob("*"):  # Include generated report sources and figures from all reported experiment groups.
             allowed = path.name in report_names or (path.parent.name in {"experiments", "figures"} and path.suffix in {".md", ".pdf", ".png"})
