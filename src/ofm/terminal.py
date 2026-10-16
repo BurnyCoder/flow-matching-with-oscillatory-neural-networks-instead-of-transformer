@@ -51,6 +51,8 @@ def capture_terminal(root: Path):
              contextlib.redirect_stderr(Tee(sys.stderr, log, lock, "stderr")):  # Captures third-party Python output too.
             try:  # Ensure unexpected failures remain in the same command transcript.
                 yield  # The caller runs parsing, phase dispatch, and complete JSON printing inside the capture.
+            except SystemExit:  # argparse already writes help or a complete usage error to the captured streams.
+                raise  # Preserve its exit code without printing a misleading traceback for ordinary --help.
             except BaseException:  # Include interruptions and argument parsing failures without hiding them.
                 traceback.print_exc()  # Full stack trace is written to terminal and file before restoration.
                 raise  # Preserve the actual nonzero command exit for study orchestration.

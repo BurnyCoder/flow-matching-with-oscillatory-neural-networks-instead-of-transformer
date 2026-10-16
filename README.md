@@ -31,6 +31,8 @@ uv run --no-sync ofm report --root runs/example --output reports/example
 
 Set `OFM_DEVICE=cpu` in `.env` or pass `--device cpu` for new CPU runs. Resume restores the saved device and all scientific settings; only explicitly supplied `--minutes` and `--steps` change stopping limits. Do not reuse development run directories for the final study. A useful MNIST training run is longer than this smoke check; the pilot schedule gives each architecture 20 minutes.
 
+`ofm train --config path/to/config.json --run-dir runs/new-run` starts from a complete saved configuration. This form uses the file's settings instead of other CLI/environment defaults. The study runner uses it to inherit actual frozen pilot settings for CIFAR runs.
+
 ## Reproduce the study
 
 ```bash

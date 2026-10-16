@@ -32,6 +32,7 @@ def parser() -> argparse.ArgumentParser:
     training.add_argument("--device")  # Explicit CPU/CUDA choice overrides environment only for a new run.
     training.add_argument("--run-dir", type=Path)  # Optional stable directory for named study arms.
     training.add_argument("--resume", type=Path)  # Resumes a complete run directory and its serialized scientific settings.
+    training.add_argument("--config", type=Path)  # Loads an explicit frozen configuration for a new run.
     for name in ["sample", "evaluate"]:  # Shared inference arguments avoid duplicated interface definitions.
         command = commands.add_parser(name, help=f"{name.capitalize()} a saved EMA generator")  # Both consume saved checkpoints.
         command.add_argument("--run", type=Path, required=True)  # Identifies a training run or exported model directory.
@@ -62,10 +63,15 @@ def parser() -> argparse.ArgumentParser:
 
 def training_arguments(args) -> tuple[TrainConfig, Path | None, bool]:
     """Local: resolve new-run or resume settings. Global: omitted options cannot overwrite a previous scientific configuration."""
+    if args.resume and args.config:  # A run cannot simultaneously restore state and request an independent new configuration.
+        raise ValueError("Use either --resume or --config, not both")  # Prevent ambiguous scientific settings.
     if args.resume:  # Saved settings are authoritative for an existing experiment.
         config = TrainConfig.from_dict(json.loads((args.resume / "config.json").read_text()))  # Reconstructs the prior run.
         overrides = {key: value for key, value in {"minutes": args.minutes, "max_steps": args.steps}.items() if value is not None}
         return replace(config, **overrides), args.resume, True  # Only explicit stopping-limit changes are accepted here.
+    if args.config:  # The study runner supplies the complete frozen configuration instead of relying on current .env defaults.
+        config = TrainConfig.from_dict(json.loads(args.config.read_text()))  # Validate every serialized scientific setting.
+        return config, args.run_dir, False  # No other CLI defaults silently overwrite explicit configuration contents.
     channels, size = (1, 28) if args.dataset == "mnist" else (3, 32)  # Native dataset dimensions are part of the model contract.
     model = ModelConfig(family=args.model, channels=channels, size=size, width=args.width, depth=args.depth,
                         inner_steps=args.inner_steps)  # Defaults retain the full pre-specified architecture.

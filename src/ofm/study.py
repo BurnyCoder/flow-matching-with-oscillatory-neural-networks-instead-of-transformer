@@ -18,6 +18,7 @@ from ofm.artifacts import (  # Shared durable provenance.
     timestamp,  # Names every command attempt.
     write_json,  # Commits schedules and results atomically.
 )
+from ofm.config import ModelConfig, TrainConfig  # Reconstruct frozen scientific settings before launching each arm.
 
 
 def build_schedule() -> list[dict]:
@@ -47,9 +48,28 @@ def run_command(arguments: list[str], directory: Path) -> None:
         raise RuntimeError(f"Study command failed with exit {result.returncode}: {directory}")  # Stop for diagnosis before further spending.
 
 
+def scheduled_config(root: Path, entry: dict, device: str) -> TrainConfig:
+    """Local: inherit actual pilot settings. Global: later environment edits cannot change the frozen comparison configuration."""
+    if entry["phase"] == "pilot":  # Pilots use the pre-specified defaults and native grayscale image shape.
+        return TrainConfig(model=ModelConfig(family=entry["family"], channels=1, size=28), dataset="mnist",
+                           seed=entry["seed"], device=device, minutes=entry["minutes"])  # Full settings are serialized before launch.
+    frozen = json.loads((root / "freeze.json").read_text())["pilot_configs"]  # Actual completed pilot configurations are authoritative.
+    reference_family = "onn" if entry["phase"] == "ablations" else entry["family"]  # Ablations inherit the original oscillator scaffold.
+    config = next(value for value in frozen.values() if value["model"]["family"] == reference_family)  # Select by family, not run ranking.
+    if config["device"] != device:  # Hardware changes would invalidate the fixed-wall-time comparison.
+        raise ValueError("Comparison device must match the frozen pilot device")  # CPU sampling remains available independently.
+    config.update(dataset=entry["dataset"], seed=entry["seed"], minutes=entry["minutes"], max_steps=0)  # Declared experimental changes only.
+    config["model"].update(family=entry["family"], channels=3, size=32, ffn_hidden=0)  # Re-match transformer capacity for native CIFAR inputs.
+    return TrainConfig.from_dict(config)  # Validate the complete inherited configuration before starting compute.
+
+
 def train_entry(root: Path, entry: dict, device: str) -> dict:
     """Local: complete one scheduled budget. Global: rerunning a phase resumes unfinished work and skips completed arms."""
     directory = root / entry["relative_path"]  # One immutable location per predeclared run.
+    planned, planned_path = scheduled_config(root, entry, device), directory / "planned-config.json"  # Freeze the actual launch settings.
+    if planned_path.exists() and json.loads(planned_path.read_text()) != planned.to_dict():  # Reject hidden drift across restarts.
+        raise ValueError(f"Scheduled configuration differs from its recorded plan: {directory}")  # Do not silently alter an arm.
+    write_json(planned_path, planned.to_dict())  # Persist before training so failed launches retain complete intended settings.
     summary_path = directory / "training.json"  # Completion is determined from persisted evidence, not directory existence.
     if summary_path.exists():  # A previous invocation may have already completed this scheduled arm.
         summary = json.loads(summary_path.read_text())  # Preserve its original measurements without retraining.
@@ -58,8 +78,7 @@ def train_entry(root: Path, entry: dict, device: str) -> dict:
     if (directory / "checkpoint.pt").exists():  # Resume only when a complete optimizer checkpoint is available.
         arguments = ["--resume", str(directory), "--minutes", str(entry["minutes"]), "--steps", "0"]  # Cumulative time limit.
     else:  # A fresh scheduled run gets explicit scientific settings.
-        arguments = ["--dataset", entry["dataset"], "--model", entry["family"], "--seed", str(entry["seed"]),
-                     "--minutes", str(entry["minutes"]), "--run-dir", str(directory), "--device", device]  # Defaults are protocol-fixed.
+        arguments = ["--config", str(planned_path), "--run-dir", str(directory)]  # Current environment defaults cannot override the freeze.
     run_command(["-m", "ofm.cli", "train", *arguments], directory)  # Releases all model/optimizer GPU memory on child exit.
     summary = json.loads(summary_path.read_text())  # The child writes its actual completion status.
     if summary["status"] != "completed":  # Budget exhaustion cannot silently become a final 45-minute comparison.

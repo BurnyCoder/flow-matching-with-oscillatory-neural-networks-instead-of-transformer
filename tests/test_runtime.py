@@ -47,6 +47,14 @@ def test_budget_deadline_terminates_a_blocked_worker(tmp_path):
     assert ledger["charged_seconds"] == 1 and ledger["active"] is not None  # No refund for an interrupted reservation.
 
 
+def test_cli_help_exits_without_a_traceback(tmp_path, monkeypatch):
+    """Local: exercise the real CLI entry point. Global: ordinary help remains usable inside complete transcript capture."""
+    monkeypatch.setenv("OFM_RUNS_ROOT", str(tmp_path))  # Keep the command log within the test fixture.
+    result = subprocess.run([sys.executable, "-m", "ofm.cli", "--help"], text=True, capture_output=True, check=False)
+    assert result.returncode == 0 and "Traceback" not in result.stderr  # Help is success, not a logged numerical failure.
+    assert "publish" in result.stdout  # Confirms the actual supported-command parser executed.
+
+
 def test_stream_resume_matches_uninterrupted():
     """Local: checkpoint permutation and cursor. Global: resumed comparisons use identical minibatch prefixes."""
     stream = BatchStream(torch.arange(19), seed=42)  # Small size forces an epoch boundary.

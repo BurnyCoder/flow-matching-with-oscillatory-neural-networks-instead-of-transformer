@@ -26,7 +26,7 @@ from ofm.artifacts import (  # Shared provenance and hashes.
 from ofm.checkpoints import load_generator  # Reconstructs the same EMA generator used in reported evaluations.
 
 REPOSITORY = "https://github.com/BurnyCoder/flow-matching-with-oscillatory-neural-networks-instead-of-transformer"  # Public code provenance.
-ARTIFACT_NAMES = {"checkpoint.pt", "config.json", "training.json", "diagnostic.json", "environment.json", "data_manifest.json",
+ARTIFACT_NAMES = {"checkpoint.pt", "config.json", "planned-config.json", "training.json", "diagnostic.json", "environment.json", "data_manifest.json",
                   "run.log", "evaluation.json", "evaluation_config.json", "failure.json", "sampling.json", "control.json",
                   "samples.safetensors", "fixed_batch.safetensors", "grid.png"}  # Positive allowlist, never a broad directory upload.
 
@@ -59,6 +59,8 @@ def export_run(source: Path, target: Path) -> dict:
     write_json(target / "config.json", config.to_dict())  # Resolved architecture exactly reconstructs the exported state.
     status_path = source / "training.json" if (source / "training.json").exists() else source / "diagnostic.json"  # Scientific role.
     result = json.loads(status_path.read_text()) if status_path.exists() else {"status": "incomplete"}  # Never infer successful training.
+    role = "fixed-batch diagnostic" if status_path.name == "diagnostic.json" else result.get("status", "incomplete")  # Explicit scientific role.
+    weights_description = "final diagnostic weights without EMA" if role == "fixed-batch diagnostic" else "initial weights" if role == "untrained" else "EMA weights"
     card = f"""---
 license: mit
 pipeline_tag: unconditional-image-generation
@@ -70,7 +72,7 @@ tags:
 # {config.dataset} / {config.model.family} / seed {config.seed}
 
 This is an unconditional pixel-space velocity network from the [oscillatory flow matching study]({REPOSITORY}).
-Recorded status: **{result.get('status', 'incomplete')}**. The model is a research artifact; sample quality and limitations are documented in its accompanying evaluations and the public reports. No performance advantage is assumed.
+Recorded role: **{role}**; status: **{result.get('status', 'incomplete')}**. The model is a research artifact; sample quality and limitations are documented in its accompanying evaluations and the public reports. Fixed-batch diagnostics deliberately memorize a few examples and are not general-purpose generators. No performance advantage is assumed.
 
 ## Loading and sampling
 
@@ -80,7 +82,7 @@ Install the locked environment from the source repository. Download this entire 
 ofm sample --run /path/to/downloaded/run --device cpu --count 64 --nfe 32
 ```
 
-The public Python loader is `ofm.checkpoints.load_generator(path, device="cpu")`; models accept `forward(images, times)` and return image-shaped velocities. The safe inference weights are the same EMA weights used for reported generation. `checkpoint.pt` additionally preserves the available training/diagnostic state; ordinary training checkpoints are resumable with `ofm train --resume /path/to/run` after downloading the official dataset.
+The public Python loader is `ofm.checkpoints.load_generator(path, device="cpu")`; models accept `forward(images, times)` and return image-shaped velocities. This export contains **{weights_description}**. `checkpoint.pt` additionally preserves the available training/diagnostic state; ordinary training checkpoints are resumable with `ofm train --resume /path/to/run` after downloading the official dataset. Untrained and fixed-batch diagnostic checkpoints do not contain a resumable ordinary training loop.
 
 ## Training and evaluation
 
@@ -93,7 +95,7 @@ Small native-resolution datasets and a short local compute budget limit image qu
     (target / "README.md").write_text(card, encoding="utf-8")  # Each checkpoint remains understandable outside its parent collection.
     manifest = write_manifest(target)  # Hash only after every artifact and model card has been written.
     return {"source": str(source), "target": str(target), "dataset": config.dataset, "family": config.model.family,
-            "seed": config.seed, "status": result.get("status"), "files": len(manifest),
+            "seed": config.seed, "status": result.get("status"), "role": role, "files": len(manifest),
             "bytes": sum(value["bytes"] for value in manifest.values())}  # Concrete reviewable export summary.
 
 
