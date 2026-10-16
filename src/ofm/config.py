@@ -4,7 +4,7 @@ Sources: https://docs.python.org/3/library/dataclasses.html;
 https://bbc2.github.io/python-dotenv/; numerical defaults are pre-specified in docs/protocol.md.
 """
 
-from dataclasses import asdict, dataclass, field  # Standard-library immutable-description helpers avoid a config framework.
+from dataclasses import asdict, dataclass, field  # Avoids a separate configuration framework.
 from pathlib import Path  # Keeps paths portable within the checkout.
 
 
@@ -27,6 +27,8 @@ class ModelConfig:
         """Local: reject invalid shapes. Global: prevent silent changes to the intended architecture."""
         if self.family not in {"onn", "dit", "conv", "no_coupling", "no_frequency"}:  # Only implemented arms are accepted.
             raise ValueError(f"Unknown backbone: {self.family}")  # Fail before allocating model/data resources.
+        if self.rotating_dim < 2 or self.patch < 1 or self.size < 1 or self.channels < 1:  # Validate divisors before modulo.
+            raise ValueError("rotating_dim >= 2 and positive patch, size, channels are required")  # Clear shape validation.
         if self.width < 8 or self.width % 4 or self.width % self.rotating_dim:  # Attention and vector groups must divide width.
             raise ValueError("width must be >=8 and divisible by four and rotating_dim")  # Explains the shape contract.
         if self.rotating_dim < 2 or self.size % self.patch or min(self.depth, self.inner_steps) < 1:  # Validate recurrence/grid.

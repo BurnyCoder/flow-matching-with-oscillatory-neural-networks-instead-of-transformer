@@ -1,0 +1,40 @@
+{
+  "seed": 20261016,
+  "trials": 20000,
+  "pairs": 6,
+  "alpha": 0.05,
+  "model": "independent Gaussian paired differences",
+  "common_random_numbers_across_effects": true,
+  "results": [
+    {
+      "standardized_effect": 0,
+      "power": 0.02985,
+      "monte_carlo_se": 0.0012033074731754973
+    },
+    {
+      "standardized_effect": 0.5,
+      "power": 0.1133,
+      "monte_carlo_se": 0.0022412397239028226
+    },
+    {
+      "standardized_effect": 0.8,
+      "power": 0.2406,
+      "monte_carlo_se": 0.0030225125309913934
+    },
+    {
+      "standardized_effect": 1,
+      "power": 0.35465,
+      "monte_carlo_se": 0.0033828492243965
+    },
+    {
+      "standardized_effect": 1.5,
+      "power": 0.6567,
+      "monte_carlo_se": 0.0033574179811277595
+    },
+    {
+      "standardized_effect": 2,
+      "power": 0.8685,
+      "monte_carlo_se": 0.002389641709545596
+    }
+  ]
+}

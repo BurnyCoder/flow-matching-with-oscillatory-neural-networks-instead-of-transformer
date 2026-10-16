@@ -19,3 +19,5 @@ exports/
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
+# Pandoc/Typst intermediates are reproducible; version the Markdown sources and rendered PDFs.
+reports/**/*.typ

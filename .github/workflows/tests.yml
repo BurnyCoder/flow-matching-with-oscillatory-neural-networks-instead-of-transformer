@@ -1,0 +1,14 @@
+# Local: repeat software contracts on CPU. Global: every feature PR has reproducible numerical/persistence checks.
+name: software-contracts
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.27"
+      - run: uv sync --frozen --extra cpu
+      - run: uv run --frozen --extra cpu pytest -q
+      - run: uv run --frozen --extra cpu ruff check src tests
