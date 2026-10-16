@@ -125,6 +125,15 @@ def publish_study(root: Path, namespace: str = "BurnyCoder", dry_run: bool = Fal
             existing = next((path for path in matches if path.exists()), None)  # Prefer provenance closest to the requested root.
             if existing is not None:  # Do not fabricate a freeze or budget file for development-only exports.
                 shutil.copy2(existing, directory / name)  # Public records contain settings/accounting, not credentials.
+        report_root = Path("reports")  # Public reports are an explicit independent artifact source, never arbitrary user files.
+        report_names = {"paper.md", "paper.pdf", "experiments.md", "experiments.pdf", "analysis.json",
+                        "planning-power.md", "planning-power.pdf", "planning-power.json"}  # Complete synthesis and planning evidence.
+        for path in report_root.rglob("*"):  # Include generated report sources and figures from all reported experiment groups.
+            allowed = path.name in report_names or (path.parent.name in {"experiments", "figures"} and path.suffix in {".md", ".pdf", ".png"})
+            if path.is_file() and not path.is_symlink() and allowed:  # Positive format/location policy excludes caches and secrets.
+                report_target = directory / "reports" / path.relative_to(report_root)  # Keep report links portable within the release.
+                report_target.parent.mkdir(parents=True, exist_ok=True)  # Preserve experiment and figure grouping.
+                shutil.copy2(path, report_target)  # Report bundles contain no original dataset downloads.
         write_manifest(directory)  # A root manifest covers every nested artifact except self-referential manifests.
     result = {"export_root": str(destination), "exports": exports, "dry_run": dry_run,
               "repositories": [f"{namespace}/oscillatory-flow-matching-{dataset}" for dataset in datasets]}  # Reviewable plan.

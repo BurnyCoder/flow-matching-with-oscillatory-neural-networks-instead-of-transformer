@@ -15,7 +15,10 @@ from ofm.report_text import (  # Reuses readable report composition functions.
     experiment_record,  # Documents each individual attempt.
     paper_text,  # Synthesizes methods and measured claims.
 )
-from ofm.statistics import paired_comparison, planning_power  # Shared inferential and pre-training planning calculations.
+from ofm.statistics import (  # Shared inferential and pre-training planning calculations.
+    paired_comparison,  # Compares complete trained seed pairs.
+    planning_power,  # Reproduces the frozen Gaussian planning simulation.
+)
 
 
 def collect_records(root: Path, filename: str) -> list[dict]:
