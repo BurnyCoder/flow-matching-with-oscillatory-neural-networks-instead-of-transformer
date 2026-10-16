@@ -1,0 +1,58 @@
+[project]
+name = "oscillatory-flow-matching"
+version = "0.1.0"
+description = "Reproducible image flow matching with coupled Kuramoto oscillator backbones"
+readme = "README.md"
+authors = [
+    { name = "BurnyCoder", email = "happymancz@email.cz" }
+]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "torch==2.11.0", "torchvision==0.26.0", "torchcfm==1.0.7",
+    "torchdiffeq>=0.2.5", "torch-fidelity==0.4.0", "numpy>=2.0",
+    "scipy>=1.14", "matplotlib>=3.9", "python-dotenv>=1.0",
+    "safetensors>=0.5", "huggingface-hub>=1.0",
+    "pypandoc-binary==1.17", "typst==0.15.0",
+]
+
+[project.optional-dependencies]
+cpu = ["torch==2.11.0", "torchvision==0.26.0"]
+cuda = ["torch==2.11.0", "torchvision==0.26.0"]
+
+[dependency-groups]
+dev = ["pytest>=8.3", "ruff>=0.11"]
+
+[project.scripts]
+ofm = "ofm.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.11.27,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "ofm"
+
+# Explicit accelerator indexes follow https://docs.astral.sh/uv/guides/integration/pytorch/.
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "cuda" }]]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", extra = "cpu" }, { index = "pytorch-cu128", extra = "cuda" }]
+torchvision = [{ index = "pytorch-cpu", extra = "cpu" }, { index = "pytorch-cu128", extra = "cuda" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
