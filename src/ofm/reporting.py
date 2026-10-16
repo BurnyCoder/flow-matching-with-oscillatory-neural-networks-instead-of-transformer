@@ -23,13 +23,14 @@ from ofm.statistics import (  # Shared inferential and pre-training planning cal
 
 def collect_records(root: Path, filename: str) -> list[dict]:
     """Local: read every matching artifact. Global: missing/failed experiments remain distinguishable from favorable completed ones."""
-    return [{**json.loads(path.read_text()), "id": path.parent.relative_to(root).as_posix(), "artifact": str(path)}
+    return [{**json.loads(path.read_text()), "id": (path.with_suffix("") if "*" in filename else path.parent).relative_to(root).as_posix(),
+             "artifact": str(path)}
             for path in sorted(root.rglob(filename))]  # Stable path ordering avoids ranking records by observed performance.
 
 
 def analyze(evaluations: list[dict]) -> dict:
     """Local: align declared seed pairs. Global: incomplete results cannot produce a complete-study significance claim."""
-    candidates = [row for row in evaluations if row.get("primary_eligible") and row["id"].startswith("main/")
+    candidates = [row for row in evaluations if row.get("primary_eligible") and "main" in Path(row["id"]).parts
                   and row["family"] in {"onn", "dit"}]  # Reject controls, secondary NFE values, and partial training checkpoints.
     indexed = {}  # One score per architecture/seed is required to avoid implicit best-evaluation selection.
     for row in candidates:  # Validate every observed primary score before calculating inference.
@@ -62,7 +63,7 @@ def create_reports(root: Path, output: Path, pdf: bool = True) -> dict:
     failures = collect_records(root, "failure*.json")  # Includes numerical, command, metric, and process-deadline failures.
     analysis = analyze(evaluations)  # Inferential claims depend only on the complete fixed primary population.
     analysis.update({"run_count": len(runs), "evaluation_count": len(evaluations), "failure_count": len(failures)})  # Evidence completeness.
-    budget_path = root.parent / "budget.json"  # Default layout shares one ledger across study and development checks.
+    budget_path = root / "budget.json" if (root / "budget.json").exists() else root.parent / "budget.json"  # Supports all-runs or study roots.
     budget = json.loads(budget_path.read_text()) if budget_path.exists() else {}  # Missing accounting is never invented.
     write_json(output / "analysis.json", analysis)  # Machine-readable results support independent audit and reanalysis.
     figures = make_figures(evaluations, analysis, output)  # Figures exist only when corresponding observations exist.
@@ -93,7 +94,11 @@ def create_reports(root: Path, output: Path, pdf: bool = True) -> dict:
         "It is not a post-hoc estimate from observed KID differences. Six pairs were retained despite low moderate-effect power "
         "because the 24-hour budget defines an exploratory study. Common Gaussian draws are shifted across effect scenarios; "
         "all 64 sign assignments are enumerated for every simulated study. The null rejection rate is below 0.05 because "
-        "the exact test is discrete.\n\n```json\n" + json.dumps(power, indent=2) + "\n```\n\n"
+        "the exact test is discrete. An analytical cross-check added during implementation uses the fact that six nonzero "
+        "differences yield a two-sided minimum p-value of 2/64; the next level is 4/64. At alpha 0.05, rejection therefore "
+        "requires all six signs to agree. For independent N(d,1) differences the exact power is Phi(d)^6 + Phi(-d)^6, "
+        "and null size is 0.03125. This cross-check does not change the pre-selected seed count or stopping rule.\n\n```json\n"
+        + json.dumps(power, indent=2) + "\n```\n\n"
         "Source: [SciPy permutation-test documentation](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.permutation_test.html).\n",
         encoding="utf-8")  # Complete assumptions and outcomes without an implied empirical advantage.
     documents.append(power_document)  # The planning experiment also receives a reproducible PDF.

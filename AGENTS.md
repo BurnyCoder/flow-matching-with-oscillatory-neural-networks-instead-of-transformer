@@ -9,6 +9,7 @@ The user's instructions in the originating chat take precedence over this file.
 - Explain local mechanics and global purpose in module/function docstrings and code comments; cite primary sources.
 - Push code and the protocol before training. Push fixes before rerunning affected experiments.
 - Keep meaningful commits, feature PRs, and merges. Never commit credentials or downloaded datasets.
+- During active workers, merge PRs without automatic checkout/deletion; avoid transient source removal while another process imports modules.
 - Preserve all runs, failures, seed results, and protocol deviations. Do not stop or extend experiments based on significance.
 - Treat the persisted 24-hour compute ledger as cumulative across restarts.
 - Keep the same run-root ledger for all development, training, sampling, and evaluation; do not reset it to complete an arm.

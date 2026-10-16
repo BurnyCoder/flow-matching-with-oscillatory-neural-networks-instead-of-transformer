@@ -5,15 +5,34 @@ https://docs.pytorch.org/docs/2.11/generated/torch.optim.swa_utils.AveragedModel
 """
 
 import importlib.metadata  # Records actual installed dependencies rather than intended version ranges.
+import json  # Reconciles checkpoint progress with failed-run and conservative reservation records.
 import os  # Sets documented deterministic CUDA configuration before kernels run.
 import sys  # Records the actual Python runtime in provenance.
 from dataclasses import replace  # Constructs the matched unablated initialization without mutating the experiment.
+from pathlib import Path  # Canonicalizes ledger labels and run directories for recovery matching.
 
 import torch  # Provides model, optimizer, and RNG serialization.
 from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn  # Reuses PyTorch's maintained EMA implementation.
 
 from ofm.artifacts import git_revision, seed_for  # Stable stream identities and source provenance.
 from ofm.models.factory import build_model  # Shares checkpoint and training construction.
+
+
+def resume_timing(prior: dict, config, directory: Path) -> tuple[float, bool]:
+    """Local: reconcile saved progress with spent time. Global: failed/discarded updates cannot extend a fixed-budget comparison."""
+    elapsed = float(prior["train_seconds"])  # Model recovery begins at the last complete checkpoint's recorded clock.
+    summary_path = directory / "training.json"  # A graceful failure may have recorded work after that checkpoint.
+    if summary_path.exists():  # Preserve known compute cost even when its corresponding updates were discarded.
+        elapsed = max(elapsed, json.loads(summary_path.read_text()).get("train_seconds", 0))  # Never refund lost optimizer work.
+    interrupted = False  # CPU runs and clean GPU exits have no unknown outstanding reservation.
+    if config.device.startswith("cuda") and config.budget_path.exists():  # Only GPU work has a persistent reservation ledger.
+        ledger = json.loads(config.budget_path.read_text())  # Atomic ledger replacement gives a complete accounting snapshot.
+        records = ledger.get("history", []) + ([ledger["active"]] if ledger.get("active") else [])  # Most recent reservation is last.
+        matching = [record for record in records if Path(record["label"]).resolve() == directory.resolve()]  # Ignore other runs/evaluations.
+        interrupted = bool(matching and matching[-1].get("status", "active") in {"active", "interrupted_full_charge"})
+        if interrupted:  # Exact stop time is unknown, so the original reserved training horizon is conservatively spent.
+            elapsed = max(elapsed, prior["config"]["minutes"] * 60)  # Do not restart the remaining duration from an older checkpoint.
+    return elapsed, interrupted and elapsed >= config.minutes * 60  # Explicit user extensions remain separate, non-primary configurations.
 
 
 def configure_runtime(device: str) -> None:

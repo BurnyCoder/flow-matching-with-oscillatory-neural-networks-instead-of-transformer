@@ -51,7 +51,7 @@ def parser() -> argparse.ArgumentParser:
     schedule.add_argument("--dry-run", action="store_true")  # Inspects the schedule without training or test evaluation.
     schedule.add_argument("--device", default=os.environ.get("OFM_DEVICE", "cuda"))  # Matches local hardware by default.
     reports = commands.add_parser("report", help="Build Markdown reports, figures, and PDFs from recorded artifacts")  # Evidence synthesis.
-    reports.add_argument("--root", type=Path, default=Path("runs/study"))  # Selects which experiment group to describe.
+    reports.add_argument("--root", type=Path, default=Path("runs"))  # Consolidates development checks and the complete study by default.
     reports.add_argument("--output", type=Path, default=Path("reports"))  # Canonical experiment-report directory.
     reports.add_argument("--no-pdf", action="store_true")  # Allows lightweight text-only inspection when explicitly requested.
     publication = commands.add_parser("publish", help="Export and upload audited artifacts to a public HF collection")  # Explicit release.
