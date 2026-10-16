@@ -1,4 +1,4 @@
-# Evaluation: mnist-smoke/validation-check
+# Evaluation: study/pilot/mnist-onn-s101/evaluations/validation
 
 ## Purpose and interpretation
 
@@ -13,45 +13,45 @@ This evaluation measures a fixed checkpoint and fixed noise population. KID subs
   "training_seed": 101,
   "split": "validation",
   "intervention": "none",
-  "generated_count": 128,
+  "generated_count": 512,
   "real_count": 5000,
   "sampling_seed": 20261016,
   "metric_seed": 20261016,
   "nfe": 32,
   "kid_subsets": 100,
-  "kid_subset_size": 128,
-  "checkpoint_sha256": "8f38d4c79f09a651583cc67b6596ab438a75269ad8fcb6a89db4135257a2a9db",
+  "kid_subset_size": 512,
+  "checkpoint_sha256": "f11cdc5df1a58a9be3dd5973d540755c240dcb1c67246627de8aaf8229e0b7e6",
   "data_sha256": "39da09b6ccbbfae8c6424de59b611882eba7f0fb590999ef1851e80f2d027b1c",
-  "source_revision": "5b69c903ddac223b5d44e6967dcd49ebd4e136cc",
+  "source_revision": "10f468893bb3293d617ecc2d1493bb1d7f5a3228",
   "primary_eligible": false,
   "device": "cuda",
   "status": "completed",
   "sampling": {
-    "count": 128,
+    "count": 512,
     "seed": 20261016,
     "nfe": 32,
     "batch_size": 32,
-    "seconds": 2.681424114998663,
-    "seconds_per_image": 0.020948625898427053,
+    "seconds": 14.26068795399624,
+    "seconds_per_image": 0.027852906160148905,
     "precision": "float32",
     "timing_excludes": "model load and warmup",
-    "clipped_fraction": 0.3916613459587097,
+    "clipped_fraction": 0.37238919734954834,
     "peak_memory_bytes": 55247872
   },
   "metrics": {
-    "pixel_sliced_wasserstein": 1.1010091948096694,
+    "pixel_sliced_wasserstein": 0.07142370551176533,
     "projections": 128
   },
-  "validation_velocity_mse": 2.0086912736296654,
-  "metric_seconds": 0.24426259099709569,
-  "id": "mnist-smoke/validation-check",
-  "artifact": "runs/checks/mnist-smoke/validation-check/evaluation.json"
+  "validation_velocity_mse": 0.2315111868083477,
+  "metric_seconds": 0.2839574440004071,
+  "id": "study/pilot/mnist-onn-s101/evaluations/validation",
+  "artifact": "runs/study/pilot/mnist-onn-s101/evaluations/validation/evaluation.json"
 }
 ```
 
 ## Fixed sample grid
 
-![First 64 generated samples](../figures/evaluation-mnist-smoke--validation-check.png)
+![First 64 generated samples](../figures/evaluation-study--pilot--mnist-onn-s101--evaluations--validation.png)
 
 ## Method choices and learning
 

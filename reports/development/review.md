@@ -1,0 +1,22 @@
+# Implementation and scientific-method review
+
+This was one self-review pass after the core user workflow worked and the implementation was pushed and merged. It is not an independent peer review or evidence of a performance advantage. Follow-up verification is limited to the concrete defects found here and later empirical failures.
+
+| Area | Evidence examined | Finding and action |
+| --- | --- | --- |
+| Numerical correctness | TorchCFM targets, midpoint direction/NFE, oscillator projection/normalization, deterministic forwards, finite gradients | Unit tests and fixed-batch GPU optimization passed. The readout mixes vectors before norms, preventing a constant unit-norm feature. |
+| Learning and recovery | Full MNIST smoke workflow, exact CPU resumed/uninterrupted comparison, real GPU resume | State and EMA restoration work. Fixed-batch learning confirms nontrivial optimization. Failed-update elapsed time is now retained even when its model state is discarded. |
+| Reliability and allocation | File locking, crash reservations, independent deadline subprocess, run status artifacts | A blocked-worker test verifies process termination. Hard-killed reservations conservatively exhaust their original per-run horizon; they cannot silently extend a fixed-time arm. |
+| Frozen methodology | Pilot freeze, environment settings, schedule, paired RNG streams | A later `.env` edit could have changed newly launched comparison settings. Scheduled runs now load the actual saved pilot configuration through an explicit config file. |
+| Failed evidence | Repeated command failures and report filenames | Distinct failures in one directory previously collided in generated Markdown filenames. Failure identifiers now include their attempt filenames. |
+| Reporting completeness | Development runs alongside nested primary runs | Aggregation now recognizes the main phase under an all-runs root, producing one consolidated ledger without losing primary pair identity. |
+| Security and publication | Positive file allowlist, symlink rejection, safetensors, tensor-only checkpoint load, credential-pattern scan | Tests exclude `.env` and unrelated files. No credential patterns were found in tracked files. Public downloaded weights match their manifest and produce exactly matching CPU predictions. |
+| Maintainability and design | Shared phase wrapper, architecture factory, reusable sampling/evaluation, library implementations | Core mathematical/data/metric algorithms reuse maintained libraries. Orchestration, model dynamics, training state, analysis, rendering, and publication have separate interfaces. |
+| Statistical inference | Declared six seeds, missing-pair handling, exact test, t interval, KID subset variability | No complete-study inference is emitted for missing pairs. Six-seed power remains low; an analytical sign-agreement calculation cross-checks the pre-training simulation without changing the design. |
+| Reproducibility limits | Checkpoint hashes, package lock, dataset manifests, source history, CPU/CUDA behavior | Exact same-runtime recovery and export predictions are verified. Cross-hardware bitwise equality, near-duplicate removal, universal speed rankings, and oscillator superiority are not claimed. |
+
+A CPU evaluator-cache import briefly overlapped the transient checkout performed by a PR merge with automatic local branch deletion. It failed before GPU work. The unchanged command succeeded after checkout completed. The failed attempt is retained, and active-worker merges now avoid automatic checkout transitions. The MNIST training/evaluation logs inspected during this review contained no nonfinite loss, gradient exception, or traceback.
+
+The review did not change the backbone, optimizer defaults, data split, primary hypothesis, seed count, sampling budget, or training duration. Later empirical results must be interpreted within the protocol's limits, including architecture-specific throughput, fixed per-update EMA, small-model scope, two-seed ablations, and inference perturbations that do not alone prove a mechanism.
+
+Sources: [implementation contracts](../../docs/implementation.md), [pre-specified protocol](../../docs/protocol.md), [PyTorch serialization](https://docs.pytorch.org/docs/2.11/notes/serialization.html), [SciPy exact paired permutations](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.permutation_test.html), [NeurIPS checklist](https://neurips.cc/public/guides/PaperChecklist).

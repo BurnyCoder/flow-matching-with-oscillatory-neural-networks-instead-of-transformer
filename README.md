@@ -42,7 +42,7 @@ uv run --no-sync ofm study --phase pilot
 uv run --no-sync ofm study --phase main
 uv run --no-sync ofm study --phase ablations
 uv run --no-sync ofm study --phase evaluate
-uv run --no-sync ofm report --root runs/study --output reports
+uv run --no-sync ofm report --root runs --output reports
 # Equivalent sequential orchestration from a fresh study: ofm study --phase all
 ```
 

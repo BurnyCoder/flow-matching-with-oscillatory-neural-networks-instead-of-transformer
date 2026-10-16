@@ -30,7 +30,7 @@ def collect_records(root: Path, filename: str) -> list[dict]:
 
 def analyze(evaluations: list[dict]) -> dict:
     """Local: align declared seed pairs. Global: incomplete results cannot produce a complete-study significance claim."""
-    candidates = [row for row in evaluations if row.get("primary_eligible") and row["id"].startswith("main/")
+    candidates = [row for row in evaluations if row.get("primary_eligible") and "main" in Path(row["id"]).parts
                   and row["family"] in {"onn", "dit"}]  # Reject controls, secondary NFE values, and partial training checkpoints.
     indexed = {}  # One score per architecture/seed is required to avoid implicit best-evaluation selection.
     for row in candidates:  # Validate every observed primary score before calculating inference.
@@ -63,7 +63,7 @@ def create_reports(root: Path, output: Path, pdf: bool = True) -> dict:
     failures = collect_records(root, "failure*.json")  # Includes numerical, command, metric, and process-deadline failures.
     analysis = analyze(evaluations)  # Inferential claims depend only on the complete fixed primary population.
     analysis.update({"run_count": len(runs), "evaluation_count": len(evaluations), "failure_count": len(failures)})  # Evidence completeness.
-    budget_path = root.parent / "budget.json"  # Default layout shares one ledger across study and development checks.
+    budget_path = root / "budget.json" if (root / "budget.json").exists() else root.parent / "budget.json"  # Supports all-runs or study roots.
     budget = json.loads(budget_path.read_text()) if budget_path.exists() else {}  # Missing accounting is never invented.
     write_json(output / "analysis.json", analysis)  # Machine-readable results support independent audit and reanalysis.
     figures = make_figures(evaluations, analysis, output)  # Figures exist only when corresponding observations exist.

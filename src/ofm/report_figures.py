@@ -18,7 +18,7 @@ def make_figures(evaluations: list[dict], analysis: dict, output: Path) -> list[
     """Local: draw observed seeds and cost curves. Global: never invent missing data or plot KID subsets as independent models."""
     directory, figures = output / "figures", []  # Keep artifacts portable inside the report bundle.
     directory.mkdir(parents=True, exist_ok=True)  # Empty studies legitimately produce no data figures.
-    primary = [row for row in evaluations if row.get("primary_eligible") and row["id"].startswith("main/")]
+    primary = [row for row in evaluations if row.get("primary_eligible") and "main" in Path(row["id"]).parts]
     if primary:  # Draw only measured trained-seed results.
         figure, axis = plt.subplots(figsize=(7, 4))  # One consistent axis for direct architecture comparison.
         for offset, family in enumerate(["onn", "dit", "conv"]):  # Fixed ordering avoids outcome-based visual emphasis.
@@ -47,7 +47,7 @@ def make_figures(evaluations: list[dict], analysis: dict, output: Path) -> list[
         figure.savefig(directory / "paired-difference.png", dpi=180)  # Save a standalone inference figure.
         plt.close(figure)  # Release CPU plotting resources promptly.
         figures.append("figures/paired-difference.png")  # Include only figures backed by measured data.
-    curves = [row for row in evaluations if row.get("training_seed") == 101 and row["id"].startswith("main/")
+    curves = [row for row in evaluations if row.get("training_seed") == 101 and "main" in Path(row["id"]).parts
               and row.get("intervention") == "none" and row.get("split") == "test"]  # Preselected cost-curve seed only.
     if curves:  # The first available checkpoint can provide a visibly partial curve.
         figure, axis = plt.subplots(figsize=(7, 4))  # Shared axes make cost/quality tradeoffs comparable.
