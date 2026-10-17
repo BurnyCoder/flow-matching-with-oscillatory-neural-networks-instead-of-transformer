@@ -1,6 +1,6 @@
 # Development verification record — 2026-10-17
 
-These checks establish implementation behavior, not comparative sample quality. The primary CIFAR-10 study was incomplete when this record was written.
+These checks establish implementation behavior. Comparative sample quality is assessed separately in the [artifact-derived paper](../paper.md) and [paired analysis](../analysis.json). This record retains the initial development checks and subsequent release verification.
 
 ## Sequence and source provenance
 
@@ -43,6 +43,14 @@ Before any CIFAR optimization, an untrained oscillator generated 128 validation-
 
 The publicly downloaded trained oscillator pilot also generated 64 images on CPU at 32 velocity evaluations. Two fixed CPU input/time pairs gave exactly equal predictions from the public safetensors weights and the original EMA checkpoint. The saved public-weight SHA-256 is `06201135c2255dcc8b2ee988f9ce128ce6fe2e6eb35f3fd142b3a4db415fec96`; the checkpoint identity and all preview tensors are retained under the pilot's `cpu-public-check` directory. This checks a published trained artifact, in addition to the earlier development export test.
 
-The implementation review and expanded regression suite concluded with 33 passing tests and a passing Ruff check. The frozen dependency sync completed before the CIFAR schedule. These checks justify starting the declared comparison; they do not establish an oscillator quality advantage.
+The implementation review and expanded regression suite concluded with 33 passing tests and a passing Ruff check before the CIFAR schedule. The frozen dependency sync completed before that schedule. These checks justified starting the declared comparison; they did not establish an oscillator quality advantage.
+
+## Final training and release verification
+
+All 18 main CIFAR arms and four trained ablations completed their original 45-minute budgets. Their recorded optimization durations range from 2,700.0286 to 2,700.2957 seconds, reflecting the final optimizer-step boundary. Every arm records source revision `c749856d1c9fe07d6ce2f39d01de78f664aea9a8` and the same prepared-data SHA-256, `51ca348f81e4c280d10942cf2fa0d4dd1ce688a16b0088283069b54bbaaf6f97`. The [complete experiment index](../experiments.md) links the individual training records. No scientific model, training, data, sampling, metric, or inference configuration was changed during this comparison. Later source changes concern report composition, PDF layout, and release completeness.
+
+Release inspection found that standalone controls without a checkpoint needed an explicit export path. A regression test first failed when checking the missing real-control partition evidence; the repaired exporter now retains raw controls, failures, associated logs, and full fixed-input verification tensors through an explicit allowlist. It still excludes sibling `.env` and unrelated files. The report summary test also requires all six declared seeds and rejects a more favorable secondary-NFE score as a substitute for the primary observation. The expanded suite has 35 tests; the [CI run for the final export repair](https://github.com/BurnyCoder/flow-matching-with-oscillatory-neural-networks-instead-of-transformer/actions/runs/39057104367) passed the complete suite and Ruff. The targeted reporting/publication rerun passed all six tests locally.
+
+Visual PDF inspection exposed two concrete layout defects: long tables overflowed a single page, then full-precision numeric columns overlapped after pagination was enabled. Following the [Typst table guide](https://typst.app/docs/guides/tables/), table figures now permit page breaks and table text uses eight-point type. The corrected paper pages and an individual experiment PDF were rendered and inspected; table rows, hashes, paths, and numerical columns were readable. The comparison figure uses the preselected first 64 seed-101 images at 32 evaluations, with the complete fixed grid for every architecture. These repairs affect presentation and evidence retention, not any experimental outcome.
 
 Sources: [protocol](../../docs/protocol.md), [implementation contracts](../../docs/implementation.md), [Karpathy's training recipe](https://karpathy.github.io/2019/04/25/recipe/), [PyTorch serialization](https://docs.pytorch.org/docs/2.11/notes/serialization.html), [SciPy permutation tests](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.permutation_test.html).
