@@ -53,7 +53,7 @@ def experiment_record(kind: str, record: dict, image_reference: str | None) -> s
         "training": "This run fits the pre-specified velocity MSE objective. Completion and held-out error establish execution; generation quality requires its separate evaluation. No checkpoint was selected by best validation or test score.",
         "evaluation": "This evaluation measures a fixed checkpoint and fixed noise population. KID subset SD describes metric subsampling variability; it is not a confidence interval across trained seeds. The first 64 images are shown without selection.",
         "diagnostic": "This fixed-batch probe checks optimization, finite geometry, and deterministic predictions. It intentionally memorizes 16 training examples with fixed noise and times. Passing does not establish generalization or generative quality.",
-        "control": "This diagnostic checks metric scale/repetition or identity-intervention behavior. It is excluded from primary paired-seed inference and cannot establish an oscillator mechanism by itself.",
+        "control": "This diagnostic checks the contract recorded below, such as checkpoint reconstruction, metric repetition, or identity-intervention behavior. It is excluded from primary paired-seed inference and cannot establish an oscillator mechanism by itself.",
         "failure": "This attempt did not complete normally. Its existence is retained; missing metrics are not replaced by zero or silently removed from the planned study. Diagnose the recorded error before any authorized retry.",
     }
     visible = {key: value for key, value in record.items() if key not in {"losses", "left_indices", "right_indices"}}  # Large arrays stay intact in artifacts.
