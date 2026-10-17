@@ -1,8 +1,31 @@
 {
-  "primary_complete": false,
-  "paired_seeds": [],
-  "paired_comparison": null,
-  "conclusion": "Primary comparison incomplete; no claim about an oscillator advantage is supported.",
+  "primary_complete": true,
+  "paired_seeds": [
+    101,
+    102,
+    103,
+    104,
+    105,
+    106
+  ],
+  "paired_comparison": {
+    "n_pairs": 6,
+    "differences": [
+      0.09758904933929442,
+      0.08926941156387329,
+      0.08946457147598266,
+      0.0842514681816101,
+      0.09565028429031372,
+      0.10707796096801758
+    ],
+    "mean_difference": 0.09388379096984863,
+    "ci95": [
+      0.08542897054008555,
+      0.1023386113996117
+    ],
+    "p_value": 0.03125
+  },
+  "conclusion": "The observed positive KID difference contradicts the proposed oscillator improvement in this regime.",
   "expected_seeds": [
     101,
     102,
@@ -11,9 +34,9 @@
     105,
     106
   ],
-  "generated_at": "20261016T234057.387115Z",
-  "report_revision": "7926ff79c12be5d85eadb49b81aad5d3acfaedcd",
-  "run_count": 5,
-  "evaluation_count": 5,
-  "failure_count": 1
+  "generated_at": "20261017T193645.483905Z",
+  "report_revision": "70e60512f065824c1d7b550ceb2a449ded105670",
+  "run_count": 30,
+  "evaluation_count": 43,
+  "failure_count": 2
 }

@@ -6,10 +6,16 @@ Scientific sources are linked in the generated paper's related-work section; num
 import json  # Presents complete scalar/configuration evidence without inventing narrative results.
 from pathlib import Path  # Loads the exact configuration accompanying an experiment.
 
+from ofm.report_summary import (  # Keep primary inference and secondary descriptions separate.
+    summarize_primary_cost,  # Six-seed quality, throughput, latency, and memory summaries.
+    summarize_secondary_pairs,  # Two-seed descriptive ablations and state perturbations.
+)
+
 
 def number(value) -> str:
     """Local: format a displayed scalar. Global: distinguish missing results from measured zero."""
-    return "—" if value is None else f"{value:.6g}" if isinstance(value, (float, int)) else str(value)  # Keep useful precision.
+    # Python's g format rounds significant digits; keep integer counts exact: https://docs.python.org/3.12/library/string.html#formatspec.
+    return "—" if value is None else f"{value:.6g}" if isinstance(value, float) else str(value)  # Preserve integer counts and boolean outcomes.
 
 
 def table(headers: list[str], rows: list[list]) -> str:
@@ -19,17 +25,23 @@ def table(headers: list[str], rows: list[list]) -> str:
     return "\n".join(lines) if rows else "No measurements are available yet."  # Do not imply an empty study measured zero.
 
 
+def evidence_link(kind: str, record: dict) -> str:
+    """Local: link a table row to its full record. Global: every displayed empirical value has inspectable primary evidence."""
+    filename = kind + "-" + record["id"].replace("/", "--") + ".md"  # Matches the report writer's stable artifact-derived naming.
+    return f"[{record['id']}](<experiments/{filename}>)"  # Relative links work in GitHub, local Markdown, and the Hub report bundle.
+
+
 def training_table(runs) -> str:
     """Local: summarize every trained or untrained arm. Global: capacity and achieved compute remain visible beside quality."""
     return table(["Run", "Status", "Parameters", "Updates", "Train seconds", "Images/s", "Validation MSE"],
-                 [[row["id"], row["status"], row.get("parameters"), row.get("step"), row.get("train_seconds"),
+                 [[evidence_link("training", row), row["status"], row.get("parameters"), row.get("step"), row.get("train_seconds"),
                    row.get("images_per_second"), row.get("final_validation_mse")] for row in runs])  # All recorded arms, fixed path order.
 
 
 def quality_table(evaluations) -> str:
     """Local: summarize every metric attempt that completed. Global: sample counts and metric variability are never implicit."""
     return table(["Evaluation", "Generated/real N", "NFE", "KID mean", "KID subset SD", "FID", "Pixel SWD", "ms/image"],
-                 [[row["id"], f"{row['generated_count']}/{row['real_count']}", row["nfe"],
+                 [[evidence_link("evaluation", row), f"{row['generated_count']}/{row['real_count']}", row["nfe"],
                    row["metrics"].get("kernel_inception_distance_mean"), row["metrics"].get("kernel_inception_distance_std"),
                    row["metrics"].get("frechet_inception_distance"), row["metrics"].get("pixel_sliced_wasserstein"),
                    1000 * row["sampling"]["seconds_per_image"]] for row in evaluations])  # No rounding before statistical analysis.
@@ -41,7 +53,7 @@ def experiment_record(kind: str, record: dict, image_reference: str | None) -> s
         "training": "This run fits the pre-specified velocity MSE objective. Completion and held-out error establish execution; generation quality requires its separate evaluation. No checkpoint was selected by best validation or test score.",
         "evaluation": "This evaluation measures a fixed checkpoint and fixed noise population. KID subset SD describes metric subsampling variability; it is not a confidence interval across trained seeds. The first 64 images are shown without selection.",
         "diagnostic": "This fixed-batch probe checks optimization, finite geometry, and deterministic predictions. It intentionally memorizes 16 training examples with fixed noise and times. Passing does not establish generalization or generative quality.",
-        "control": "This diagnostic checks metric scale/repetition or identity-intervention behavior. It is excluded from primary paired-seed inference and cannot establish an oscillator mechanism by itself.",
+        "control": "This diagnostic checks the contract recorded below, such as checkpoint reconstruction, metric repetition, or identity-intervention behavior. It is excluded from primary paired-seed inference and cannot establish an oscillator mechanism by itself.",
         "failure": "This attempt did not complete normally. Its existence is retained; missing metrics are not replaced by zero or silently removed from the planned study. Diagnose the recorded error before any authorized retry.",
     }
     visible = {key: value for key, value in record.items() if key not in {"losses", "left_indices", "right_indices"}}  # Large arrays stay intact in artifacts.
@@ -58,7 +70,8 @@ def experiment_record(kind: str, record: dict, image_reference: str | None) -> s
              "Microbatches bound laptop memory; four internal updates bound recurrent cost; EMA smooths noisy parameter updates. "
              "These choices trade study breadth for a fixed local compute budget. This record supports only the measurements above; "
              "causes of quality differences require the trained controls and uncertainty analysis. Full trajectories, populations, RNG states, "
-             "and logs remain in the referenced artifact bundle. Sources: [protocol](../../docs/protocol.md), "
+             "and logs remain in the referenced artifact bundle. Sources: "
+             "[protocol](https://github.com/BurnyCoder/flow-matching-with-oscillatory-neural-networks-instead-of-transformer/blob/main/docs/protocol.md), "
              "[TorchCFM](https://github.com/atong01/conditional-flow-matching), "
              "[AKOrN](https://arxiv.org/html/2410.13821v2).\n")  # Explicit provenance and limits, without invented failure explanations.
     return text  # Returned Markdown is also the source of this experiment's PDF.
@@ -106,11 +119,33 @@ def paper_text(runs, evaluations, diagnostics, controls, failures, analysis, bud
     """Local: assemble a technical paper from fixed methods and actual outputs. Global: strength of claims follows completed evidence."""
     paired = analysis["paired_comparison"]  # Missing primary outcomes must remain visibly missing throughout the paper.
     result_text = json.dumps(paired, indent=2) if paired else "Primary paired inference is unavailable because the study is incomplete."
+    primary_sentence = (f"The mean oscillator-minus-transformer KID difference is {number(paired['mean_difference'])} "
+                        f"(approximate 95% t interval [{number(paired['ci95'][0])}, {number(paired['ci95'][1])}]; "
+                        f"exact two-sided sign-flip p = {number(paired['p_value'])})." if paired else "The primary comparison is incomplete.")
+    summaries = summarize_primary_cost(runs, evaluations)  # Uses only complete six-seed primary populations at NFE32.
+    overview = table(["Model", "Parameters", "Mean KID", "Mean FID", "Train images/s", "Sample ms/image", "Peak train/sample MiB"],
+                     [[row["family"], row["parameters"], row["kid_mean"], row["fid_mean"], row["images_per_second"],
+                       row["milliseconds_per_image"], f"{number(row['training_peak_mib'])}/{number(row['sampling_peak_mib'])}"]
+                      for row in summaries])  # Memory is a maximum across seeds, not a confidence interval.
+    by_family = {row["family"]: row for row in summaries}  # Reuse the same complete seed populations as the adjacent evidence table.
+    cost_comparison = "The complete oscillator/transformer cost comparison is not yet available."  # No ratios from partial populations.
+    if "onn" in by_family and "dit" in by_family:  # Both architecture means require all six declared final checkpoints.
+        oscillator, transformer = by_family["onn"], by_family["dit"]  # Descriptive ratios do not introduce another significance test.
+        cost_comparison = (f"Relative to the transformer, the oscillator achieved "
+            f"{number(oscillator['images_per_second'] / transformer['images_per_second'])} times the mean training throughput "
+            f"and required {number(oscillator['milliseconds_per_image'] / transformer['milliseconds_per_image'])} times "
+            "the mean sampling time per image. These are ratios of the six-seed arithmetic means in the table, "
+            "measured on this runtime; they are not hardware-independent operation counts.")  # Source every ratio to displayed observations.
+    secondary = table(["Condition", "Mean KID", "Delta seed 101", "Delta seed 102", "Mean delta"],
+                      [[row["condition"], row["kid_mean"], *row["differences"], row["mean_difference"]]
+                       for row in summarize_secondary_pairs(evaluations)])  # Show both observations, including null or reversed differences.
     text = rf"""# Oscillatory velocity networks for budget-constrained image flow matching
+
+**Libor Burian**, independent researcher
 
 ## Abstract
 
-We implement an attention-free, AKOrN-inspired velocity network for unconditional image generation and a reproducible comparison with a small DiT-style transformer and recurrent convolutional control. The design isolates backbone computation while sharing a straight conditional flow-matching path, data preparation, optimizer, and numerical sampler. The planned primary comparison uses six paired CIFAR-10 seeds, 45 minutes per model, 5,000 generated images per seed, and 32 velocity evaluations. **{analysis['conclusion']}** At report generation, {len(runs)} training/control records and {len(evaluations)} completed evaluations were available. This is an exploratory local-compute study, not a claim of state-of-the-art performance.
+We implement an attention-free, AKOrN-inspired velocity network for unconditional image generation and a reproducible comparison with a small DiT-style transformer and recurrent convolutional control. The design isolates backbone computation while sharing a straight conditional flow-matching path, data preparation, optimizer, and numerical sampler. The planned primary comparison uses six paired CIFAR-10 seeds, 45 minutes per model, 5,000 generated images per seed, and 32 velocity evaluations. {primary_sentence} **{analysis['conclusion']}** At report generation, {len(runs)} training/control records and {len(evaluations)} completed evaluations were available. The [recorded analysis](analysis.json) and linked experiment tables below provide the empirical evidence. This is an exploratory local-compute study, not a claim of state-of-the-art performance.
 
 ## Context, motivation, and introduction
 
@@ -146,7 +181,7 @@ State normalization uses epsilon $10^{{-8}}$. The conditioning stimulus uses per
 
 The transformer shares patch encoding, positional features, time encoding, and output prediction. Four blocks use four-head self-attention, a GELU MLP, and AdaLN-Zero time-conditioned residual gates. Its feed-forward width is deterministically adjusted in multiples of eight to match the oscillator trainable count within 5%; the default RGB width resolves to 576. The recurrent convolutional control retains the oscillator scaffold, convolution, iteration count, and mixed-state readout, replacing tangent dynamics with GroupNorm of a SiLU residual update. Counts, throughput, and memory are measured rather than assumed equal.
 
-Separate no-coupling and no-natural-frequency models are trained for seeds 101 and 102. Retained parameters start from the corresponding ONN initialization. Removing coupling also removes many parameters, so its effects are not an isolated capacity-matched causal estimate. Zero frequency removes natural rotation, not all dynamics. Inference sensitivity diagnostics permute spatial hidden states after block one while preserving each vector's norm, and compare with an identity intervention on the same checkpoints and source noise. They test sensitivity to correspondence, not whether synchronization caused quality. Untrained architectures and disjoint real-versus-real image populations provide additional controls. The inference permutation is fixed before evaluation; it is not selected to maximize degradation.
+Separate no-coupling and no-natural-frequency models are trained for seeds 101 and 102. Retained parameters start from the corresponding ONN initialization. Removing coupling changes both parameter count and spatial information exchange, so its effects are not an isolated capacity-matched causal estimate; image-wide GroupNorm statistics remain. Zero frequency removes natural rotation, not all dynamics. Inference sensitivity diagnostics permute spatial hidden states after block one while preserving each vector's norm, and compare with an identity intervention on the same checkpoints and source noise. Residual image features are retained. They test sensitivity to correspondence, not whether synchronization caused quality. Untrained architectures and disjoint real-versus-real image populations provide additional controls. The spatial permutation uses seed 20261016 and is fixed before evaluation; it is not selected to maximize degradation. These operations are specified in the [backbone implementation](https://github.com/BurnyCoder/flow-matching-with-oscillatory-neural-networks-instead-of-transformer/blob/main/src/ofm/models/backbone.py) and [oscillator blocks](https://github.com/BurnyCoder/flow-matching-with-oscillatory-neural-networks-instead-of-transformer/blob/main/src/ofm/models/oscillator.py).
 
 ### Optimization, pairing, and budget
 
@@ -168,6 +203,16 @@ The pre-training power calculation used 20,000 simulated Gaussian six-difference
 
 {analysis['conclusion']}
 
+{primary_sentence}
+
+### Fixed-budget comparison
+
+{overview}
+
+Each available row summarizes all six declared seeds at 45 training minutes and 32 velocity evaluations. KID, FID, throughput, and latency are arithmetic means across seeds. Each quality evaluation uses 5,000 generated and 10,000 real images. Memory is the maximum allocated peak across those six runs, in MiB; it excludes the CUDA context and other processes. The [training](#training-and-capacity) and [evaluation](#quality-and-sampling-cost) tables link every underlying observation. Seed uncertainty belongs to the paired analysis below, not to KID subset SD.
+
+{cost_comparison}
+
 Primary paired analysis:
 
 ```text
@@ -184,13 +229,20 @@ Primary paired analysis:
 
 KID subset SD in the table is metric subset variability, not a training-seed confidence interval. FID is reported only with its finite generated/real population sizes. A missing entry denotes an unmeasured quantity. Status `untrained` is an explicit control and `step_limit` is a development run; neither qualifies as a final 45-minute checkpoint.
 
+### Descriptive trained ablations and inference sensitivity
+
+{secondary}
+
+Each displayed row contains both declared seeds, 101 and 102, at 32 velocity evaluations with 5,000 generated and 10,000 real images. Delta means condition KID minus the corresponding original oscillator KID; positive values indicate degradation. The full [quality table](#quality-and-sampling-cost) links every observation. These two-seed contrasts carry no confirmatory p-value or confidence interval. Removing a trained term changes optimization cost and may change capacity; spatial shuffling instead perturbs an already trained state while retaining residual features. Neither design by itself identifies synchronization as the cause of a quality difference. Identity output equality is checked independently across the complete generated tensors below.
+
 """  # Fixed methods precede measured results and never imply that planned runs have completed.
     for figure in figures:  # Include only figures generated from actual recorded observations.
         text += f"![Observed evidence: {Path(figure).stem}]({figure})\n\n"  # Portable figure reference within the report bundle.
     text += "### Numerical checks and controls\n\n" + table(["Check", "Initial MSE", "Final MSE", "Ratio", "Passed"],
-             [[row["id"], row.get("initial_loss"), row.get("final_loss"), row.get("loss_ratio"), row.get("passed")] for row in diagnostics])
-    text += "\n\n" + table(["Control", "Recorded result"], [[row["id"], json.dumps({key: value for key, value in row.items()
-                             if key in {"metrics", "repeat_max_absolute_difference", "identity_exact_equal"}})] for row in controls])
+             [[evidence_link("diagnostic", row), row.get("initial_loss"), row.get("final_loss"), row.get("loss_ratio"), row.get("passed")] for row in diagnostics])
+    text += "\n\n" + table(["Control", "Recorded result"], [[evidence_link("control", row), json.dumps({key: value for key, value in row.items()
+                             if key in {"metrics", "repeat_max_absolute_difference", "identity_exact_equal",
+                                        "prediction_max_absolute_difference", "compared_checkpoints", "all_state_tensors_equal"}})] for row in controls])
     text += f"""
 
 ### Failures and compute accounting
@@ -199,7 +251,7 @@ Recorded failed attempts: {len(failures)}. Cumulative charged GPU seconds: {numb
 
 ## Discussion and implications
 
-The experimental unit is a full training seed, and the comparison applies to these implementations under equal occupied training time. Parameter matching does not equalize operations, receptive fields, memory access, optimization trajectories, or initial conditioning. A measured advantage would motivate replication across larger models and datasets; a disadvantage would constrain this specific design rather than all oscillator networks. A feasible generator can exist even when its comparative quality is worse. Inference corruption can show dependence on a representation while remaining compatible with several explanations of how that representation was learned.
+The experimental unit is a full training seed, and the comparison applies to these implementations under equal occupied training time. Parameter matching does not equalize operations, receptive fields, memory access, optimization trajectories, or initial conditioning. The throughput measurements explain the different numbers of optimizer updates achieved within 45 minutes, but do not isolate why image quality differs. Unequal data exposure, architectural inductive biases, and the wall-time span of the fixed per-update EMA remain possible contributors. An equal-update experiment would answer a different question and was not added after seeing these outcomes. The conclusion constrains this specific design and budget rather than all oscillator networks. A feasible generator can exist even when its comparative quality is worse. Inference corruption can show dependence on a representation while remaining compatible with several explanations of how that representation was learned.
 
 ## Limitations
 
