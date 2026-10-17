@@ -51,7 +51,8 @@ def copy_artifact(path: Path, source: Path, target: Path) -> None:
 def export_study_records(root: Path, target: Path) -> None:
     """Local: retain raw controls and failed attempts. Global: scientific evidence need not have an associated model checkpoint."""
     records = {path for pattern in ("control.json", "failure*.json") for path in root.rglob(pattern)}  # Explicit record allowlist.
-    paths = records | {path.with_name("run.log") for path in records}  # Include associated logs, never arbitrary sibling files.
+    paths = records | {path.with_name(name) for path in records for name in ("run.log", "fixed_batch.safetensors")}
+    # The second allowlisted artifact preserves full fixed-input verification tensors, never arbitrary sibling files.
     for path in sorted(paths):  # Stable order makes release inspection straightforward.
         if path.is_file():  # Some standalone records have no log file; do not manufacture one.
             copy_artifact(path, root, target)  # Reuse the model export's copying and symbolic-link policy.

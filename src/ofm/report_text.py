@@ -218,7 +218,8 @@ KID subset SD in the table is metric subset variability, not a training-seed con
     text += "### Numerical checks and controls\n\n" + table(["Check", "Initial MSE", "Final MSE", "Ratio", "Passed"],
              [[evidence_link("diagnostic", row), row.get("initial_loss"), row.get("final_loss"), row.get("loss_ratio"), row.get("passed")] for row in diagnostics])
     text += "\n\n" + table(["Control", "Recorded result"], [[evidence_link("control", row), json.dumps({key: value for key, value in row.items()
-                             if key in {"metrics", "repeat_max_absolute_difference", "identity_exact_equal"}})] for row in controls])
+                             if key in {"metrics", "repeat_max_absolute_difference", "identity_exact_equal",
+                                        "prediction_max_absolute_difference", "compared_checkpoints", "all_state_tensors_equal"}})] for row in controls])
     text += f"""
 
 ### Failures and compute accounting

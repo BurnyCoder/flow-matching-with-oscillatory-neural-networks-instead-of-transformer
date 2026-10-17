@@ -49,12 +49,14 @@ def test_study_export_retains_controls_without_checkpoints(tmp_path, monkeypatch
     (control / "control.json").write_text(json.dumps(evidence))  # Rendering omits large index arrays, so preserve the raw record.
     (control / "failure-first.json").write_text(json.dumps({"error": "fixture failure"}))  # Preserve earlier failed attempts too.
     (control / "run.log").write_text("2026-10-17T00:00:00Z control completed\n")  # Keep the associated timestamped trajectory.
+    (control / "fixed_batch.safetensors").write_bytes(b"complete tensor artifact fixture")  # Check preservation of full control tensors.
     (control / ".env").write_text("HF_TOKEN=FAKE_TEST_SECRET")  # Sibling credentials must remain outside the allowlist.
     result = publish_study(tmp_path / "runs", dry_run=True)  # Exercise actual release orchestration without Hub credentials.
     target = tmp_path / result["export_root"] / config.dataset  # Inspect the same directory that would be uploaded.
     copied = target / "study-records/controls/real-versus-real"  # Standalone records have an explicit shared evidence location.
     assert json.loads((copied / "control.json").read_text()) == evidence  # No partition indices may be silently dropped.
     assert (copied / "failure-first.json").exists() and (copied / "run.log").exists()  # Retain both outcome and failure provenance.
+    assert (copied / "fixed_batch.safetensors").read_bytes() == b"complete tensor artifact fixture"  # Scalars cannot replace full outputs.
     assert not (copied / ".env").exists()  # Confirm the repair did not broaden export to arbitrary directory contents.
     manifest = json.loads((target / "manifest.json").read_text())  # Root integrity coverage must include the added evidence.
     assert "study-records/controls/real-versus-real/control.json" in manifest  # Exported controls are hash-verifiable.
