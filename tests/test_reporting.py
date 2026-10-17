@@ -5,6 +5,9 @@ Source: https://neurips.cc/public/guides/PaperChecklist (claims must match avail
 
 import json  # Writes small explicit result fixtures without running model training.
 
+import pytest  # Compares numerical summaries with explicitly calculated expected values.
+
+from ofm.report_summary import summarize_primary_cost  # Produces descriptive summaries from complete seed populations.
 from ofm.reporting import analyze, create_reports  # Exercises production aggregation and rendering.
 
 
@@ -37,3 +40,22 @@ def test_all_runs_root_preserves_primary_pair_identity():
             for seed in range(101, 107) for family, value in [("onn", 0.01), ("dit", 0.02)]]  # Six explicit complete pairs.
     result = analyze(rows)  # Exercise path-independent phase identification, not a manually rearranged record list.
     assert result["primary_complete"] and result["paired_seeds"] == list(range(101, 107))  # Root selection cannot hide measured pairs.
+
+
+def test_cost_summary_uses_all_six_primary_seeds_only():
+    """Local: exclude secondary costs and incomplete seed sets. Global: summary tables cannot silently change the estimand."""
+    runs, evaluations = [], []  # Construct six known final-budget observations without any real computation.
+    for seed in range(101, 107):  # The pre-specified independent experimental units.
+        identifier = f"study/main/cifar10-onn-s{seed}"  # Match production artifact identities.
+        runs.append({"id": identifier, "parameters": 100, "images_per_second": 200,
+                     "peak_memory_bytes": 2 * 1024**2})  # Known capacity, throughput, and memory in bytes.
+        evaluations.append({"id": identifier + "/evaluations/test-nfe32", "family": "onn", "training_seed": seed,
+                            "primary_eligible": True, "metrics": {"kernel_inception_distance_mean": 0.2 if seed == 106 else 0.1,
+                                                                  "frechet_inception_distance": 100},
+                            "sampling": {"seconds_per_image": 0.01, "peak_memory_bytes": 1024**2}})  # Fixed measured costs.
+    secondary = {**evaluations[0], "id": runs[0]["id"] + "/evaluations/test-nfe64", "primary_eligible": False,
+                 "metrics": {"kernel_inception_distance_mean": 0, "frechet_inception_distance": 0}}  # Deliberately attractive alternate cost.
+    summary = summarize_primary_cost(runs, evaluations + [secondary])  # Secondary sampling must not affect primary means.
+    assert len(summary) == 1 and summary[0]["kid_mean"] == pytest.approx(0.7 / 6)  # Include the worse sixth seed, exclude the alternate NFE.
+    assert summary[0]["milliseconds_per_image"] == 10 and summary[0]["training_peak_mib"] == 2  # Verify displayed unit conversion.
+    assert summarize_primary_cost(runs, evaluations[:-1] + [secondary]) == []  # Five seeds cannot masquerade as the full population.

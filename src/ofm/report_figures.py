@@ -34,6 +34,19 @@ def make_figures(evaluations: list[dict], analysis: dict, output: Path) -> list[
         figure.savefig(directory / "seed-kid.png", dpi=180)  # Standalone report asset, not an interactive screenshot.
         plt.close(figure)  # Avoid accumulating figures during repeated report generation.
         figures.append("figures/seed-kid.png")  # Returned paths are relative for portable Markdown rendering.
+    previews = {row["family"]: Path(row["artifact"]).parent / "grid.png" for row in primary
+                if row["training_seed"] == 101 and row["family"] in {"onn", "dit", "conv"}}  # Preselected seed and first 64 outputs.
+    if len(previews) == 3 and all(path.exists() for path in previews.values()):  # Never substitute a favorable alternate seed.
+        figure, axes = plt.subplots(1, 3, figsize=(10, 3.7))  # Give every architecture identical display area.
+        for axis, family, label in zip(axes, ("onn", "dit", "conv"), ("Oscillator", "Transformer", "Recurrent conv"), strict=True):
+            axis.imshow(plt.imread(previews[family]), interpolation="nearest")  # Display the complete original grid without selection.
+            axis.set_title(label)  # Explicit family labels make the visual comparison auditable.
+            axis.axis("off")  # Image grids have no meaningful numerical axes.
+        figure.suptitle("Seed 101: first 64 samples, shared source noise, 32 velocity evaluations")  # State the fixed selection rule.
+        figure.tight_layout()  # Preserve every image and caption in the exported figure.
+        figure.savefig(directory / "sample-comparison.png", dpi=180)  # Standalone scientific figure derived from recorded outputs.
+        plt.close(figure)  # Release plotting resources after export.
+        figures.append("figures/sample-comparison.png")  # Include observed image quality alongside distribution metrics.
     paired = analysis.get("paired_comparison")  # Only complete predeclared pair populations receive inferential intervals.
     if paired is not None:  # Partial studies remain descriptive instead of producing an attractive significance plot.
         figure, axis = plt.subplots(figsize=(7, 3))  # A difference plot makes the sign of the hypothesis direct.
