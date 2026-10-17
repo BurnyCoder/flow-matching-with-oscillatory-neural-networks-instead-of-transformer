@@ -14,7 +14,8 @@ from ofm.report_summary import (  # Keep primary inference and secondary descrip
 
 def number(value) -> str:
     """Local: format a displayed scalar. Global: distinguish missing results from measured zero."""
-    return "—" if value is None else f"{value:.6g}" if isinstance(value, (float, int)) else str(value)  # Keep useful precision.
+    # Python's g format rounds significant digits; keep integer counts exact: https://docs.python.org/3.12/library/string.html#formatspec.
+    return "—" if value is None else f"{value:.6g}" if isinstance(value, float) else str(value)  # Preserve integer counts and boolean outcomes.
 
 
 def table(headers: list[str], rows: list[list]) -> str:
@@ -140,8 +141,7 @@ def paper_text(runs, evaluations, diagnostics, controls, failures, analysis, bud
                        for row in summarize_secondary_pairs(evaluations)])  # Show both observations, including null or reversed differences.
     text = rf"""# Oscillatory velocity networks for budget-constrained image flow matching
 
-**Libor Burian**  
-Independent researcher
+**Libor Burian**, independent researcher
 
 ## Abstract
 

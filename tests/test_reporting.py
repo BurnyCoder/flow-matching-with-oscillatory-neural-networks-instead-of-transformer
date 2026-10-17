@@ -11,7 +11,14 @@ from ofm.report_summary import (  # Complete primary and descriptive secondary p
     summarize_primary_cost,  # All six declared training seeds at the primary solver cost.
     summarize_secondary_pairs,  # Both declared seeds for descriptive mechanism checks.
 )
+from ofm.report_text import number  # Parameter counts must remain exact in the readable evidence tables.
 from ofm.reporting import analyze, create_reports  # Exercises production aggregation and rendering.
+
+
+def test_report_preserves_integer_counts_and_boolean_outcomes():
+    """Local: format exact counts without rounding. Global: the paper must retain actual capacity and clear verification outcomes."""
+    assert number(1297712) == "1297712"  # Six-significant-digit float formatting would silently round this parameter count.
+    assert number(True) == "True" and number(None) == "—"  # A passed check and an absent measurement have distinct meanings.
 
 
 def test_empty_study_reports_no_empirical_claim(tmp_path):
