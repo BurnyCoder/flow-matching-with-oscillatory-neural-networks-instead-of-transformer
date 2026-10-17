@@ -1,8 +1,10 @@
 # Oscillatory velocity networks for budget-constrained image flow matching
 
+**Libor Burian**, independent researcher
+
 ## Abstract
 
-We implement an attention-free, AKOrN-inspired velocity network for unconditional image generation and a reproducible comparison with a small DiT-style transformer and recurrent convolutional control. The design isolates backbone computation while sharing a straight conditional flow-matching path, data preparation, optimizer, and numerical sampler. The planned primary comparison uses six paired CIFAR-10 seeds, 45 minutes per model, 5,000 generated images per seed, and 32 velocity evaluations. **Primary comparison incomplete; no claim about an oscillator advantage is supported.** At report generation, 5 training/control records and 5 completed evaluations were available. This is an exploratory local-compute study, not a claim of state-of-the-art performance.
+We implement an attention-free, AKOrN-inspired velocity network for unconditional image generation and a reproducible comparison with a small DiT-style transformer and recurrent convolutional control. The design isolates backbone computation while sharing a straight conditional flow-matching path, data preparation, optimizer, and numerical sampler. The planned primary comparison uses six paired CIFAR-10 seeds, 45 minutes per model, 5,000 generated images per seed, and 32 velocity evaluations. The mean oscillator-minus-transformer KID difference is 0.0938838 (approximate 95% t interval [0.085429, 0.102339]; exact two-sided sign-flip p = 0.03125). **The observed positive KID difference contradicts the proposed oscillator improvement in this regime.** At report generation, 30 training/control records and 43 completed evaluations were available. The [recorded analysis](analysis.json) and linked experiment tables below provide the empirical evidence. This is an exploratory local-compute study, not a claim of state-of-the-art performance.
 
 ## Context, motivation, and introduction
 
@@ -38,7 +40,7 @@ State normalization uses epsilon $10^{-8}$. The conditioning stimulus uses per-i
 
 The transformer shares patch encoding, positional features, time encoding, and output prediction. Four blocks use four-head self-attention, a GELU MLP, and AdaLN-Zero time-conditioned residual gates. Its feed-forward width is deterministically adjusted in multiples of eight to match the oscillator trainable count within 5%; the default RGB width resolves to 576. The recurrent convolutional control retains the oscillator scaffold, convolution, iteration count, and mixed-state readout, replacing tangent dynamics with GroupNorm of a SiLU residual update. Counts, throughput, and memory are measured rather than assumed equal.
 
-Separate no-coupling and no-natural-frequency models are trained for seeds 101 and 102. Retained parameters start from the corresponding ONN initialization. Removing coupling also removes many parameters, so its effects are not an isolated capacity-matched causal estimate. Zero frequency removes natural rotation, not all dynamics. Inference sensitivity diagnostics permute spatial hidden states after block one while preserving each vector's norm, and compare with an identity intervention on the same checkpoints and source noise. They test sensitivity to correspondence, not whether synchronization caused quality. Untrained architectures and disjoint real-versus-real image populations provide additional controls. The inference permutation is fixed before evaluation; it is not selected to maximize degradation.
+Separate no-coupling and no-natural-frequency models are trained for seeds 101 and 102. Retained parameters start from the corresponding ONN initialization. Removing coupling changes both parameter count and spatial information exchange, so its effects are not an isolated capacity-matched causal estimate; image-wide GroupNorm statistics remain. Zero frequency removes natural rotation, not all dynamics. Inference sensitivity diagnostics permute spatial hidden states after block one while preserving each vector's norm, and compare with an identity intervention on the same checkpoints and source noise. Residual image features are retained. They test sensitivity to correspondence, not whether synchronization caused quality. Untrained architectures and disjoint real-versus-real image populations provide additional controls. The spatial permutation uses seed 20261016 and is fixed before evaluation; it is not selected to maximize degradation. These operations are specified in the [backbone implementation](https://github.com/BurnyCoder/flow-matching-with-oscillatory-neural-networks-instead-of-transformer/blob/main/src/ofm/models/backbone.py) and [oscillator blocks](https://github.com/BurnyCoder/flow-matching-with-oscillatory-neural-networks-instead-of-transformer/blob/main/src/ofm/models/oscillator.py).
 
 ### Optimization, pairing, and budget
 
@@ -58,54 +60,170 @@ The pre-training power calculation used 20,000 simulated Gaussian six-difference
 
 ## Results and claims
 
-Primary comparison incomplete; no claim about an oscillator advantage is supported.
+The observed positive KID difference contradicts the proposed oscillator improvement in this regime.
+
+The mean oscillator-minus-transformer KID difference is 0.0938838 (approximate 95% t interval [0.085429, 0.102339]; exact two-sided sign-flip p = 0.03125).
+
+### Fixed-budget comparison
+
+| Model | Parameters | Mean KID | Mean FID | Train images/s | Sample ms/image | Peak train/sample MiB |
+| --- | --- | --- | --- | --- | --- | --- |
+| onn | 1297712 | 0.185673 | 175.085 | 396.893 | 23.4015 | 228.213/57.9087 |
+| dit | 1298864 | 0.0917895 | 104.646 | 787.423 | 10.9095 | 153.589/56.2246 |
+| conv | 1296688 | 0.134872 | 134.063 | 580.914 | 15.7993 | 186.178/57.1528 |
+
+Each available row summarizes all six declared seeds at 45 training minutes and 32 velocity evaluations. KID, FID, throughput, and latency are arithmetic means across seeds. Each quality evaluation uses 5,000 generated and 10,000 real images. Memory is the maximum allocated peak across those six runs, in MiB; it excludes the CUDA context and other processes. The [training](#training-and-capacity) and [evaluation](#quality-and-sampling-cost) tables link every underlying observation. Seed uncertainty belongs to the paired analysis below, not to KID subset SD.
+
+Relative to the transformer, the oscillator achieved 0.504041 times the mean training throughput and required 2.14506 times the mean sampling time per image. These are ratios of the six-seed arithmetic means in the table, measured on this runtime; they are not hardware-independent operation counts.
 
 Primary paired analysis:
 
 ```text
-Primary paired inference is unavailable because the study is incomplete.
+{
+  "n_pairs": 6,
+  "differences": [
+    0.09758904933929442,
+    0.08926941156387329,
+    0.08946457147598266,
+    0.0842514681816101,
+    0.09565028429031372,
+    0.10707796096801758
+  ],
+  "mean_difference": 0.09388379096984863,
+  "ci95": [
+    0.08542897054008555,
+    0.1023386113996117
+  ],
+  "p_value": 0.03125
+}
 ```
 
 ### Training and capacity
 
 | Run | Status | Parameters | Updates | Train seconds | Images/s | Validation MSE |
 | --- | --- | --- | --- | --- | --- | --- |
-| checks/cifar10-metric-smoke | untrained | 1.29771e+06 | 0 | 0 | — | — |
-| checks/mnist-smoke | step_limit | 1.28949e+06 | 100 | 33.9622 | 376.889 | 2.00869 |
-| study/pilot/mnist-conv-s101 | completed | 1.28846e+06 | 5245 | 1200.05 | 559.445 | 0.215197 |
-| study/pilot/mnist-dit-s101 | completed | 1.29064e+06 | 6778 | 1200.04 | 722.965 | 0.203531 |
-| study/pilot/mnist-onn-s101 | completed | 1.28949e+06 | 3736 | 1200.25 | 398.425 | 0.231511 |
+| [checks/cifar10-metric-smoke](<experiments/training-checks--cifar10-metric-smoke.md>) | untrained | 1297712 | 0 | 0 | — | — |
+| [checks/mnist-smoke](<experiments/training-checks--mnist-smoke.md>) | step_limit | 1289488 | 100 | 33.9622 | 376.889 | 2.00869 |
+| [study/ablations/cifar10-no_coupling-s101](<experiments/training-study--ablations--cifar10-no_coupling-s101.md>) | completed | 707888 | 9405 | 2700.28 | 445.82 | 0.262754 |
+| [study/ablations/cifar10-no_coupling-s102](<experiments/training-study--ablations--cifar10-no_coupling-s102.md>) | completed | 707888 | 10045 | 2700.04 | 476.2 | 0.266352 |
+| [study/ablations/cifar10-no_frequency-s101](<experiments/training-study--ablations--cifar10-no_frequency-s101.md>) | completed | 1295664 | 10320 | 2700.08 | 489.23 | 0.211623 |
+| [study/ablations/cifar10-no_frequency-s102](<experiments/training-study--ablations--cifar10-no_frequency-s102.md>) | completed | 1295664 | 10583 | 2700.13 | 501.688 | 0.216272 |
+| [study/controls/untrained-conv](<experiments/training-study--controls--untrained-conv.md>) | untrained | 1296688 | 0 | 0 | — | — |
+| [study/controls/untrained-dit](<experiments/training-study--controls--untrained-dit.md>) | untrained | 1298864 | 0 | 0 | — | — |
+| [study/controls/untrained-onn](<experiments/training-study--controls--untrained-onn.md>) | untrained | 1297712 | 0 | 0 | — | — |
+| [study/main/cifar10-conv-s101](<experiments/training-study--main--cifar10-conv-s101.md>) | completed | 1296688 | 12473 | 2700.18 | 591.272 | 0.203593 |
+| [study/main/cifar10-conv-s102](<experiments/training-study--main--cifar10-conv-s102.md>) | completed | 1296688 | 12365 | 2700.18 | 586.153 | 0.210089 |
+| [study/main/cifar10-conv-s103](<experiments/training-study--main--cifar10-conv-s103.md>) | completed | 1296688 | 12482 | 2700.07 | 591.725 | 0.212733 |
+| [study/main/cifar10-conv-s104](<experiments/training-study--main--cifar10-conv-s104.md>) | completed | 1296688 | 12480 | 2700.04 | 591.637 | 0.210087 |
+| [study/main/cifar10-conv-s105](<experiments/training-study--main--cifar10-conv-s105.md>) | completed | 1296688 | 12236 | 2700.17 | 580.04 | 0.213325 |
+| [study/main/cifar10-conv-s106](<experiments/training-study--main--cifar10-conv-s106.md>) | completed | 1296688 | 11489 | 2700.03 | 544.658 | 0.221481 |
+| [study/main/cifar10-dit-s101](<experiments/training-study--main--cifar10-dit-s101.md>) | completed | 1298864 | 16959 | 2700.17 | 803.93 | 0.192738 |
+| [study/main/cifar10-dit-s102](<experiments/training-study--main--cifar10-dit-s102.md>) | completed | 1298864 | 17303 | 2700.06 | 820.271 | 0.197029 |
+| [study/main/cifar10-dit-s103](<experiments/training-study--main--cifar10-dit-s103.md>) | completed | 1298864 | 17148 | 2700.12 | 812.907 | 0.201229 |
+| [study/main/cifar10-dit-s104](<experiments/training-study--main--cifar10-dit-s104.md>) | completed | 1298864 | 16981 | 2700.03 | 805.017 | 0.198842 |
+| [study/main/cifar10-dit-s105](<experiments/training-study--main--cifar10-dit-s105.md>) | completed | 1298864 | 15926 | 2700.13 | 754.973 | 0.201822 |
+| [study/main/cifar10-dit-s106](<experiments/training-study--main--cifar10-dit-s106.md>) | completed | 1298864 | 15345 | 2700.11 | 727.438 | 0.208719 |
+| [study/main/cifar10-onn-s101](<experiments/training-study--main--cifar10-onn-s101.md>) | completed | 1297712 | 8589 | 2700.05 | 407.175 | 0.215884 |
+| [study/main/cifar10-onn-s102](<experiments/training-study--main--cifar10-onn-s102.md>) | completed | 1297712 | 8588 | 2700.09 | 407.122 | 0.220631 |
+| [study/main/cifar10-onn-s103](<experiments/training-study--main--cifar10-onn-s103.md>) | completed | 1297712 | 8632 | 2700.27 | 409.179 | 0.224278 |
+| [study/main/cifar10-onn-s104](<experiments/training-study--main--cifar10-onn-s104.md>) | completed | 1297712 | 8536 | 2700.11 | 404.654 | 0.221115 |
+| [study/main/cifar10-onn-s105](<experiments/training-study--main--cifar10-onn-s105.md>) | completed | 1297712 | 8248 | 2700.25 | 390.981 | 0.226086 |
+| [study/main/cifar10-onn-s106](<experiments/training-study--main--cifar10-onn-s106.md>) | completed | 1297712 | 7642 | 2700.3 | 362.248 | 0.234817 |
+| [study/pilot/mnist-conv-s101](<experiments/training-study--pilot--mnist-conv-s101.md>) | completed | 1288464 | 5245 | 1200.05 | 559.445 | 0.215197 |
+| [study/pilot/mnist-dit-s101](<experiments/training-study--pilot--mnist-dit-s101.md>) | completed | 1290640 | 6778 | 1200.04 | 722.965 | 0.203531 |
+| [study/pilot/mnist-onn-s101](<experiments/training-study--pilot--mnist-onn-s101.md>) | completed | 1289488 | 3736 | 1200.25 | 398.425 | 0.231511 |
 
 ### Quality and sampling cost
 
 | Evaluation | Generated/real N | NFE | KID mean | KID subset SD | FID | Pixel SWD | ms/image |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| checks/cifar10-metric-smoke/evaluations/validation | 128/5000 | 32 | 0.609741 | 0.0059603 | 487.666 | — | 21.3627 |
-| checks/mnist-smoke/validation-check | 128/5000 | 32 | — | — | — | 1.10101 | 20.9486 |
-| study/pilot/mnist-conv-s101/evaluations/validation | 512/5000 | 32 | — | — | — | 0.063441 | 13.336 |
-| study/pilot/mnist-dit-s101/evaluations/validation | 512/5000 | 32 | — | — | — | 0.0617331 | 9.42476 |
-| study/pilot/mnist-onn-s101/evaluations/validation | 512/5000 | 32 | — | — | — | 0.0714237 | 27.8529 |
+| [checks/cifar10-metric-smoke/evaluations/validation](<experiments/evaluation-checks--cifar10-metric-smoke--evaluations--validation.md>) | 128/5000 | 32 | 0.609741 | 0.0059603 | 487.666 | — | 21.3627 |
+| [checks/mnist-smoke/validation-check](<experiments/evaluation-checks--mnist-smoke--validation-check.md>) | 128/5000 | 32 | — | — | — | 1.10101 | 20.9486 |
+| [study/ablations/cifar10-no_coupling-s101/evaluations/test-nfe32](<experiments/evaluation-study--ablations--cifar10-no_coupling-s101--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.26963 | 0.00267395 | 269.031 | — | 19.4271 |
+| [study/ablations/cifar10-no_coupling-s102/evaluations/test-nfe32](<experiments/evaluation-study--ablations--cifar10-no_coupling-s102--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.267981 | 0.00290885 | 266.878 | — | 22.0612 |
+| [study/ablations/cifar10-no_frequency-s101/evaluations/test-nfe32](<experiments/evaluation-study--ablations--cifar10-no_frequency-s101--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.169792 | 0.0025135 | 163.113 | — | 16.5046 |
+| [study/ablations/cifar10-no_frequency-s102/evaluations/test-nfe32](<experiments/evaluation-study--ablations--cifar10-no_frequency-s102--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.160263 | 0.0024495 | 156.719 | — | 16.0385 |
+| [study/controls/untrained-conv/evaluations/test](<experiments/evaluation-study--controls--untrained-conv--evaluations--test.md>) | 5000/10000 | 32 | 0.604058 | 0.00279767 | 456.73 | — | 19.9959 |
+| [study/controls/untrained-dit/evaluations/test](<experiments/evaluation-study--controls--untrained-dit--evaluations--test.md>) | 5000/10000 | 32 | 0.601732 | 0.00281394 | 455.442 | — | 10.97 |
+| [study/controls/untrained-onn/evaluations/test](<experiments/evaluation-study--controls--untrained-onn--evaluations--test.md>) | 5000/10000 | 32 | 0.599606 | 0.00259296 | 455.38 | — | 28.3087 |
+| [study/main/cifar10-conv-s101/evaluations/test-nfe16](<experiments/evaluation-study--main--cifar10-conv-s101--evaluations--test-nfe16.md>) | 5000/10000 | 16 | 0.129412 | 0.0022568 | 127.666 | — | 7.59598 |
+| [study/main/cifar10-conv-s101/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-conv-s101--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.132659 | 0.00224372 | 132.002 | — | 13.9111 |
+| [study/main/cifar10-conv-s101/evaluations/test-nfe64](<experiments/evaluation-study--main--cifar10-conv-s101--evaluations--test-nfe64.md>) | 5000/10000 | 64 | 0.135467 | 0.00227747 | 135.195 | — | 28.4834 |
+| [study/main/cifar10-conv-s101/evaluations/test-nfe8](<experiments/evaluation-study--main--cifar10-conv-s101--evaluations--test-nfe8.md>) | 5000/10000 | 8 | 0.127097 | 0.00227732 | 122.565 | — | 3.69969 |
+| [study/main/cifar10-conv-s102/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-conv-s102--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.137173 | 0.0022348 | 136.479 | — | 14.257 |
+| [study/main/cifar10-conv-s103/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-conv-s103--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.131977 | 0.00215866 | 130.711 | — | 17.6869 |
+| [study/main/cifar10-conv-s104/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-conv-s104--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.131518 | 0.00212369 | 130.908 | — | 14.792 |
+| [study/main/cifar10-conv-s105/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-conv-s105--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.13401 | 0.00216785 | 133.047 | — | 17.3853 |
+| [study/main/cifar10-conv-s106/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-conv-s106--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.141894 | 0.00228545 | 141.231 | — | 16.7635 |
+| [study/main/cifar10-dit-s101/evaluations/test-nfe16](<experiments/evaluation-study--main--cifar10-dit-s101--evaluations--test-nfe16.md>) | 5000/10000 | 16 | 0.0857987 | 0.00165292 | 98.6546 | — | 5.21638 |
+| [study/main/cifar10-dit-s101/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-dit-s101--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.0909215 | 0.00172645 | 104.111 | — | 10.1586 |
+| [study/main/cifar10-dit-s101/evaluations/test-nfe64](<experiments/evaluation-study--main--cifar10-dit-s101--evaluations--test-nfe64.md>) | 5000/10000 | 64 | 0.0952455 | 0.00181027 | 108.063 | — | 21.3938 |
+| [study/main/cifar10-dit-s101/evaluations/test-nfe8](<experiments/evaluation-study--main--cifar10-dit-s101--evaluations--test-nfe8.md>) | 5000/10000 | 8 | 0.0838022 | 0.00163955 | 95.6179 | — | 2.4516 |
+| [study/main/cifar10-dit-s102/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-dit-s102--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.0899517 | 0.00169648 | 103.125 | — | 9.77963 |
+| [study/main/cifar10-dit-s103/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-dit-s103--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.0920323 | 0.00184124 | 105.047 | — | 10.1741 |
+| [study/main/cifar10-dit-s104/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-dit-s104--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.0926866 | 0.00191923 | 105.141 | — | 13.4588 |
+| [study/main/cifar10-dit-s105/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-dit-s105--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.0905512 | 0.00181148 | 104.204 | — | 12.1196 |
+| [study/main/cifar10-dit-s106/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-dit-s106--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.0945936 | 0.00188419 | 106.249 | — | 9.76628 |
+| [study/main/cifar10-onn-s101/evaluations/identity](<experiments/evaluation-study--main--cifar10-onn-s101--evaluations--identity.md>) | 5000/10000 | 32 | 0.188511 | 0.00274027 | 176.705 | — | 23.2444 |
+| [study/main/cifar10-onn-s101/evaluations/shuffle](<experiments/evaluation-study--main--cifar10-onn-s101--evaluations--shuffle.md>) | 5000/10000 | 32 | 0.263509 | 0.00299769 | 240.955 | — | 23.6636 |
+| [study/main/cifar10-onn-s101/evaluations/test-nfe16](<experiments/evaluation-study--main--cifar10-onn-s101--evaluations--test-nfe16.md>) | 5000/10000 | 16 | 0.178735 | 0.00259012 | 168.147 | — | 11.3092 |
+| [study/main/cifar10-onn-s101/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-onn-s101--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.188511 | 0.00274027 | 176.705 | — | 21.099 |
+| [study/main/cifar10-onn-s101/evaluations/test-nfe64](<experiments/evaluation-study--main--cifar10-onn-s101--evaluations--test-nfe64.md>) | 5000/10000 | 64 | 0.19384 | 0.00281791 | 181.258 | — | 46.2968 |
+| [study/main/cifar10-onn-s101/evaluations/test-nfe8](<experiments/evaluation-study--main--cifar10-onn-s101--evaluations--test-nfe8.md>) | 5000/10000 | 8 | 0.174378 | 0.00246556 | 162.823 | — | 6.22954 |
+| [study/main/cifar10-onn-s102/evaluations/identity](<experiments/evaluation-study--main--cifar10-onn-s102--evaluations--identity.md>) | 5000/10000 | 32 | 0.179221 | 0.00275456 | 170.893 | — | 26.7271 |
+| [study/main/cifar10-onn-s102/evaluations/shuffle](<experiments/evaluation-study--main--cifar10-onn-s102--evaluations--shuffle.md>) | 5000/10000 | 32 | 0.257773 | 0.00364871 | 233.55 | — | 27.1896 |
+| [study/main/cifar10-onn-s102/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-onn-s102--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.179221 | 0.00275456 | 170.893 | — | 21.6993 |
+| [study/main/cifar10-onn-s103/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-onn-s103--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.181497 | 0.00273838 | 171.989 | — | 24.4268 |
+| [study/main/cifar10-onn-s104/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-onn-s104--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.176938 | 0.00259902 | 167.294 | — | 24.6136 |
+| [study/main/cifar10-onn-s105/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-onn-s105--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.186201 | 0.00282784 | 176.039 | — | 27.2132 |
+| [study/main/cifar10-onn-s106/evaluations/test-nfe32](<experiments/evaluation-study--main--cifar10-onn-s106--evaluations--test-nfe32.md>) | 5000/10000 | 32 | 0.201672 | 0.0028731 | 187.592 | — | 21.3573 |
+| [study/pilot/mnist-conv-s101/evaluations/validation](<experiments/evaluation-study--pilot--mnist-conv-s101--evaluations--validation.md>) | 512/5000 | 32 | — | — | — | 0.063441 | 13.336 |
+| [study/pilot/mnist-dit-s101/evaluations/validation](<experiments/evaluation-study--pilot--mnist-dit-s101--evaluations--validation.md>) | 512/5000 | 32 | — | — | — | 0.0617331 | 9.42476 |
+| [study/pilot/mnist-onn-s101/evaluations/validation](<experiments/evaluation-study--pilot--mnist-onn-s101--evaluations--validation.md>) | 512/5000 | 32 | — | — | — | 0.0714237 | 27.8529 |
 
 KID subset SD in the table is metric subset variability, not a training-seed confidence interval. FID is reported only with its finite generated/real population sizes. A missing entry denotes an unmeasured quantity. Status `untrained` is an explicit control and `step_limit` is a development run; neither qualifies as a final 45-minute checkpoint.
+
+### Descriptive trained ablations and inference sensitivity
+
+| Condition | Mean KID | Delta seed 101 | Delta seed 102 | Mean delta |
+| --- | --- | --- | --- | --- |
+| no_coupling | 0.268806 | 0.0811193 | 0.0887603 | 0.0849398 |
+| no_frequency | 0.165027 | -0.018719 | -0.0189579 | -0.0188385 |
+| identity | 0.183866 | 0 | 0 | 0 |
+| shuffle | 0.260641 | 0.0749986 | 0.0785517 | 0.0767752 |
+
+Each displayed row contains both declared seeds, 101 and 102, at 32 velocity evaluations with 5,000 generated and 10,000 real images. Delta means condition KID minus the corresponding original oscillator KID; positive values indicate degradation. The full [quality table](#quality-and-sampling-cost) links every observation. These two-seed contrasts carry no confirmatory p-value or confidence interval. Removing a trained term changes optimization cost and may change capacity; spatial shuffling instead perturbs an already trained state while retaining residual features. Neither design by itself identifies synchronization as the cause of a quality difference. Identity output equality is checked independently across the complete generated tensors below.
+
+![Observed evidence: seed-kid](figures/seed-kid.png)
+
+![Observed evidence: sample-comparison](figures/sample-comparison.png)
+
+![Observed evidence: paired-difference](figures/paired-difference.png)
+
+![Observed evidence: quality-cost](figures/quality-cost.png)
 
 ### Numerical checks and controls
 
 | Check | Initial MSE | Final MSE | Ratio | Passed |
 | --- | --- | --- | --- | --- |
-| study/checks/fixed-batch | 2.25575 | 0.000602648 | 0.000267161 | 1 |
+| [study/checks/fixed-batch](<experiments/diagnostic-study--checks--fixed-batch.md>) | 2.25575 | 0.000602648 | 0.000267161 | True |
 
 | Control | Recorded result |
 | --- | --- |
-| checks/cifar10-metric-smoke/evaluations/validation/repeat | {"repeat_max_absolute_difference": 0.0} |
-| study/pilot/mnist-onn-s101/cpu-public-check | {} |
+| [checks/cifar10-metric-smoke/evaluations/validation/repeat](<experiments/control-checks--cifar10-metric-smoke--evaluations--validation--repeat.md>) | {"repeat_max_absolute_difference": 0.0} |
+| [checks/final-export-reloads](<experiments/control-checks--final-export-reloads.md>) | {"compared_checkpoints": 31, "all_state_tensors_equal": true, "prediction_max_absolute_difference": 0.0} |
+| [study/controls/real-versus-real](<experiments/control-study--controls--real-versus-real.md>) | {"metrics": {"frechet_inception_distance": 10.272234758028844, "kernel_inception_distance_mean": -2.55584716796875e-05, "kernel_inception_distance_std": 0.00010886578191701542}, "repeat_max_absolute_difference": 0.0} |
+| [study/main/cifar10-onn-s101/evaluations/identity](<experiments/control-study--main--cifar10-onn-s101--evaluations--identity.md>) | {"identity_exact_equal": true} |
+| [study/main/cifar10-onn-s102/evaluations/identity](<experiments/control-study--main--cifar10-onn-s102--evaluations--identity.md>) | {"identity_exact_equal": true} |
+| [study/pilot/mnist-onn-s101/cpu-public-check](<experiments/control-study--pilot--mnist-onn-s101--cpu-public-check.md>) | {"prediction_max_absolute_difference": 0.0} |
 
 ### Failures and compute accounting
 
-Recorded failed attempts: 1. Cumulative charged GPU seconds: 3760.98. An active reservation, if present, is charged in advance and is not all completed work. Ledger history distinguishes successful completion, exceptions, and interrupted reservations. Individual reports retain exact errors and provenance; a later repair does not erase earlier attempts.
+Recorded failed attempts: 2. Cumulative charged GPU seconds: 67451.7. An active reservation, if present, is charged in advance and is not all completed work. Ledger history distinguishes successful completion, exceptions, and interrupted reservations. Individual reports retain exact errors and provenance; a later repair does not erase earlier attempts.
 
 ## Discussion and implications
 
-The experimental unit is a full training seed, and the comparison applies to these implementations under equal occupied training time. Parameter matching does not equalize operations, receptive fields, memory access, optimization trajectories, or initial conditioning. A measured advantage would motivate replication across larger models and datasets; a disadvantage would constrain this specific design rather than all oscillator networks. A feasible generator can exist even when its comparative quality is worse. Inference corruption can show dependence on a representation while remaining compatible with several explanations of how that representation was learned.
+The experimental unit is a full training seed, and the comparison applies to these implementations under equal occupied training time. Parameter matching does not equalize operations, receptive fields, memory access, optimization trajectories, or initial conditioning. The throughput measurements explain the different numbers of optimizer updates achieved within 45 minutes, but do not isolate why image quality differs. Unequal data exposure, architectural inductive biases, and the wall-time span of the fixed per-update EMA remain possible contributors. An equal-update experiment would answer a different question and was not added after seeing these outcomes. The conclusion constrains this specific design and budget rather than all oscillator networks. A feasible generator can exist even when its comparative quality is worse. Inference corruption can show dependence on a representation while remaining compatible with several explanations of how that representation was learned.
 
 ## Limitations
 
@@ -113,7 +231,7 @@ This study uses small native-resolution datasets, unconditional pixel-space gene
 
 ## Conclusion
 
-Primary comparison incomplete; no claim about an oscillator advantage is supported. The released interface, full artifacts, and pre-specified paired analysis support independent reproduction and inspection. Stronger claims require stronger completed evidence, not additional unplanned significance searches.
+The observed positive KID difference contradicts the proposed oscillator improvement in this regime. The released interface, full artifacts, and pre-specified paired analysis support independent reproduction and inspection. Stronger claims require stronger completed evidence, not additional unplanned significance searches.
 
 ## Appendix A: reproducibility and artifact map
 
