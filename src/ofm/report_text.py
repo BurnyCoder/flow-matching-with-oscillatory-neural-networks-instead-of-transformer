@@ -6,7 +6,10 @@ Scientific sources are linked in the generated paper's related-work section; num
 import json  # Presents complete scalar/configuration evidence without inventing narrative results.
 from pathlib import Path  # Loads the exact configuration accompanying an experiment.
 
-from ofm.report_summary import summarize_primary_cost  # Aggregates complete primary populations.
+from ofm.report_summary import (  # Keep primary inference and secondary descriptions separate.
+    summarize_primary_cost,  # Six-seed quality, throughput, latency, and memory summaries.
+    summarize_secondary_pairs,  # Two-seed descriptive ablations and state perturbations.
+)
 
 
 def number(value) -> str:
@@ -132,6 +135,9 @@ def paper_text(runs, evaluations, diagnostics, controls, failures, analysis, bud
             f"and required {number(oscillator['milliseconds_per_image'] / transformer['milliseconds_per_image'])} times "
             "the mean sampling time per image. These are ratios of the six-seed arithmetic means in the table, "
             "measured on this runtime; they are not hardware-independent operation counts.")  # Source every ratio to displayed observations.
+    secondary = table(["Condition", "Mean KID", "Delta seed 101", "Delta seed 102", "Mean delta"],
+                      [[row["condition"], row["kid_mean"], *row["differences"], row["mean_difference"]]
+                       for row in summarize_secondary_pairs(evaluations)])  # Show both observations, including null or reversed differences.
     text = rf"""# Oscillatory velocity networks for budget-constrained image flow matching
 
 **Libor Burian**  
@@ -222,6 +228,12 @@ Primary paired analysis:
 {quality_table(evaluations)}
 
 KID subset SD in the table is metric subset variability, not a training-seed confidence interval. FID is reported only with its finite generated/real population sizes. A missing entry denotes an unmeasured quantity. Status `untrained` is an explicit control and `step_limit` is a development run; neither qualifies as a final 45-minute checkpoint.
+
+### Descriptive trained ablations and inference sensitivity
+
+{secondary}
+
+Each displayed row contains both declared seeds, 101 and 102, at 32 velocity evaluations with 5,000 generated and 10,000 real images. Delta means condition KID minus the corresponding original oscillator KID; positive values indicate degradation. The full [quality table](#quality-and-sampling-cost) links every observation. These two-seed contrasts carry no confirmatory p-value or confidence interval. Removing a trained term changes optimization cost and may change capacity; spatial shuffling instead perturbs an already trained state while retaining residual features. Neither design by itself identifies synchronization as the cause of a quality difference. Identity output equality is checked independently across the complete generated tensors below.
 
 """  # Fixed methods precede measured results and never imply that planned runs have completed.
     for figure in figures:  # Include only figures generated from actual recorded observations.

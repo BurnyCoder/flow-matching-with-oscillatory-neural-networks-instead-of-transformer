@@ -7,7 +7,10 @@ import json  # Writes small explicit result fixtures without running model train
 
 import pytest  # Compares numerical summaries with explicitly calculated expected values.
 
-from ofm.report_summary import summarize_primary_cost  # Produces descriptive summaries from complete seed populations.
+from ofm.report_summary import (  # Complete primary and descriptive secondary populations.
+    summarize_primary_cost,  # All six declared training seeds at the primary solver cost.
+    summarize_secondary_pairs,  # Both declared seeds for descriptive mechanism checks.
+)
 from ofm.reporting import analyze, create_reports  # Exercises production aggregation and rendering.
 
 
@@ -59,3 +62,21 @@ def test_cost_summary_uses_all_six_primary_seeds_only():
     assert len(summary) == 1 and summary[0]["kid_mean"] == pytest.approx(0.7 / 6)  # Include the worse sixth seed, exclude the alternate NFE.
     assert summary[0]["milliseconds_per_image"] == 10 and summary[0]["training_peak_mib"] == 2  # Verify displayed unit conversion.
     assert summarize_primary_cost(runs, evaluations[:-1] + [secondary]) == []  # Five seeds cannot masquerade as the full population.
+
+
+def test_secondary_summary_pairs_both_declared_seeds_and_excludes_other_costs():
+    """Local: align two-seed mechanism checks. Global: preserve paired differences without expanding exploratory evidence into inference."""
+    rows = []  # Known scores make pairing and missing-seed behavior directly checkable.
+    for seed, baseline, ablated, shuffled in [(101, 0.1, 0.15, 0.3), (102, 0.2, 0.25, 0.2)]:
+        for phase, family, intervention, score in [("main", "onn", "none", baseline),
+                ("ablations", "no_frequency", "none", ablated), ("main", "onn", "shuffle", shuffled)]:
+            rows.append({"id": f"study/{phase}/{family}-{seed}/evaluations/{intervention}", "family": family,
+                         "training_seed": seed, "intervention": intervention, "primary_eligible": intervention == "none",
+                         "nfe": 32, "split": "test", "generated_count": 5000, "real_count": 10000,
+                         "metrics": {"kernel_inception_distance_mean": score}})  # Match the declared metric populations.
+    alternate = {**rows[1], "nfe": 64, "metrics": {"kernel_inception_distance_mean": 0}}  # Attractive but wrong solver cost.
+    summaries = summarize_secondary_pairs(rows + [alternate])  # Both seeds must be retained regardless of their direction.
+    indexed = {row["condition"]: row for row in summaries}  # Compare known paired quantities, not table formatting.
+    assert indexed["no_frequency"]["mean_difference"] == pytest.approx(0.05)  # Paired ablation-minus-original contrast.
+    assert indexed["shuffle"]["differences"] == pytest.approx([0.2, 0])  # A null second seed must not disappear.
+    assert not any(row["condition"] == "no_frequency" for row in summarize_secondary_pairs(rows[:4]))  # Missing second ablation stays incomplete.
