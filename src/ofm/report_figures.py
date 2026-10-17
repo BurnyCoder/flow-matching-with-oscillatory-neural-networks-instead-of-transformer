@@ -1,7 +1,8 @@
 """Local: evidence figures and PDF rendering. Global: plots preserve all seeds and distinguish variation from uncertainty.
 
 Sources: https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.errorbar.html;
-https://pandoc.org/MANUAL.html; https://github.com/messense/typst-py.
+https://pandoc.org/MANUAL.html; https://github.com/messense/typst-py;
+https://typst.app/docs/guides/tables/ (figures containing long tables must be breakable).
 """
 
 from pathlib import Path  # Resolves figure and PDF assets within the report directory.
@@ -85,6 +86,8 @@ def render_pdf(markdown: Path, root: Path) -> Path:
     source = markdown.with_suffix(".typ")  # Preserve the intermediate typesetting source for debugging and replication.
     pypandoc.convert_file(str(markdown), "typst", outputfile=str(source),
                          extra_args=["--standalone", "--resource-path=" + str(root.resolve()), "-V", "papersize=a4"])
+    source.write_text("#show figure.where(kind: table): set block(breakable: true)\n" + source.read_text(encoding="utf-8"),
+                      encoding="utf-8")  # Typst's documented rule prevents Pandoc table figures from overlapping at page boundaries.
     destination = markdown.with_suffix(".pdf")  # Keep human-readable source and rendered output adjacent.
     typst.compile(str(source.resolve()), output=str(destination.resolve()), root=str(root.resolve()))  # No external LaTeX needed.
     return destination  # A concrete generated file, never a claimed PDF that was not compiled.
