@@ -123,6 +123,15 @@ def paper_text(runs, evaluations, diagnostics, controls, failures, analysis, bud
                      [[row["family"], row["parameters"], row["kid_mean"], row["fid_mean"], row["images_per_second"],
                        row["milliseconds_per_image"], f"{number(row['training_peak_mib'])}/{number(row['sampling_peak_mib'])}"]
                       for row in summaries])  # Memory is a maximum across seeds, not a confidence interval.
+    by_family = {row["family"]: row for row in summaries}  # Reuse the same complete seed populations as the adjacent evidence table.
+    cost_comparison = "The complete oscillator/transformer cost comparison is not yet available."  # No ratios from partial populations.
+    if "onn" in by_family and "dit" in by_family:  # Both architecture means require all six declared final checkpoints.
+        oscillator, transformer = by_family["onn"], by_family["dit"]  # Descriptive ratios do not introduce another significance test.
+        cost_comparison = (f"Relative to the transformer, the oscillator achieved "
+            f"{number(oscillator['images_per_second'] / transformer['images_per_second'])} times the mean training throughput "
+            f"and required {number(oscillator['milliseconds_per_image'] / transformer['milliseconds_per_image'])} times "
+            "the mean sampling time per image. These are ratios of the six-seed arithmetic means in the table, "
+            "measured on this runtime; they are not hardware-independent operation counts.")  # Source every ratio to displayed observations.
     text = rf"""# Oscillatory velocity networks for budget-constrained image flow matching
 
 **Libor Burian**  
@@ -196,6 +205,8 @@ The pre-training power calculation used 20,000 simulated Gaussian six-difference
 
 Each available row summarizes all six declared seeds at 45 training minutes and 32 velocity evaluations. KID, FID, throughput, and latency are arithmetic means across seeds. Each quality evaluation uses 5,000 generated and 10,000 real images. Memory is the maximum allocated peak across those six runs, in MiB; it excludes the CUDA context and other processes. The [training](#training-and-capacity) and [evaluation](#quality-and-sampling-cost) tables link every underlying observation. Seed uncertainty belongs to the paired analysis below, not to KID subset SD.
 
+{cost_comparison}
+
 Primary paired analysis:
 
 ```text
@@ -228,7 +239,7 @@ Recorded failed attempts: {len(failures)}. Cumulative charged GPU seconds: {numb
 
 ## Discussion and implications
 
-The experimental unit is a full training seed, and the comparison applies to these implementations under equal occupied training time. Parameter matching does not equalize operations, receptive fields, memory access, optimization trajectories, or initial conditioning. A measured advantage would motivate replication across larger models and datasets; a disadvantage would constrain this specific design rather than all oscillator networks. A feasible generator can exist even when its comparative quality is worse. Inference corruption can show dependence on a representation while remaining compatible with several explanations of how that representation was learned.
+The experimental unit is a full training seed, and the comparison applies to these implementations under equal occupied training time. Parameter matching does not equalize operations, receptive fields, memory access, optimization trajectories, or initial conditioning. The throughput measurements explain the different numbers of optimizer updates achieved within 45 minutes, but do not isolate why image quality differs. Unequal data exposure, architectural inductive biases, and the wall-time span of the fixed per-update EMA remain possible contributors. An equal-update experiment would answer a different question and was not added after seeing these outcomes. The conclusion constrains this specific design and budget rather than all oscillator networks. A feasible generator can exist even when its comparative quality is worse. Inference corruption can show dependence on a representation while remaining compatible with several explanations of how that representation was learned.
 
 ## Limitations
 
