@@ -125,7 +125,9 @@ def publish_study(root: Path, namespace: str = "BurnyCoder", dry_run: bool = Fal
             continue  # They will be included after a completed, failed, or diagnostic result is recorded.
         config = json.loads((source / "config.json").read_text())  # Determine destination without executing checkpoint contents.
         target = destination / config["dataset"] / source.relative_to(root)  # Group all seeds and controls into dataset repositories.
+        event("checkpoint_export_start", source=str(source), target=str(target))  # Large releases expose their current packaging phase.
         exports.append(export_run(source, target))  # Complete concrete export before authentication or upload.
+        event("checkpoint_export_complete", **exports[-1])  # Log actual completed files and bytes without truncating their metadata.
     if not exports:  # An empty release must not create misleading public repositories.
         raise ValueError(f"No reported checkpoints to publish under {root}")  # Exposes missing training/report artifacts.
     datasets = sorted({entry["dataset"] for entry in exports})  # All measured domains receive a public model repository.
@@ -170,6 +172,7 @@ def publish_study(root: Path, namespace: str = "BurnyCoder", dry_run: bool = Fal
     result["collection"] = collection.url  # Save the concrete public destination returned by the Hub.
     for dataset, repo_id in zip(datasets, result["repositories"], strict=True):  # No best-model selection during upload.
         api.create_repo(repo_id, repo_type="model", private=False, exist_ok=True)  # User explicitly authorized public publication.
+        event("hub_repository_upload_start", repository=repo_id, directory=str(destination / dataset))  # Distinguish transfer from packaging.
         commit = api.upload_folder(repo_id=repo_id, folder_path=destination / dataset, repo_type="model",
                                    commit_message="Publish complete reported oscillator-flow study artifacts")  # Allowlisted tree only.
         add_collection_item(collection.slug, item_id=repo_id, item_type="model", exists_ok=True)  # Links every dataset repository.
