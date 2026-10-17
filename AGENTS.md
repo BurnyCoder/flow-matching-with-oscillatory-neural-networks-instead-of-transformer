@@ -18,6 +18,8 @@ The user's instructions in the originating chat take precedence over this file.
 - Use independent RNG streams for initialization, data ordering, flow noise, and evaluation.
 - Keep README claims tied to implemented behavior and measured results. Detailed results belong in reports, methods in docs.
 - Regenerate reports from artifacts. Primary inference requires all six declared pairs; KID subset SD is not seed uncertainty.
+- Credit Libor Burian, independent researcher, as the paper's author.
+- Source empirical claims to the recorded experiment evidence and methodological claims to primary references; keep speculation explicit.
 - Publish through the positive artifact allowlist and verify exported prediction equivalence; never upload arbitrary run-directory contents.
 - The runtime uses no LLM. If one is introduced, capture complete prompts/responses to timestamped logs without credentials.
 - Review correctness, security, maintainability, reproducibility, and inference validity once before release.

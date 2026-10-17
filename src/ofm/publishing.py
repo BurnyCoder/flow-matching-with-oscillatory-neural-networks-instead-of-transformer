@@ -39,6 +39,25 @@ def write_manifest(directory: Path) -> dict:
     return manifest  # Callers can inspect total size and every public artifact before upload.
 
 
+def copy_artifact(path: Path, source: Path, target: Path) -> None:
+    """Local: copy one explicitly selected file. Global: every export path preserves provenance and rejects symbolic links."""
+    if path.is_symlink():  # A permitted filename must not redirect publication toward unrelated private contents.
+        raise ValueError(f"Refusing symbolic link in export: {path}")  # Use the same boundary for models and standalone controls.
+    destination = target / path.relative_to(source)  # Retain the artifact's original study-relative identity.
+    destination.parent.mkdir(parents=True, exist_ok=True)  # Create only the selected artifact's destination hierarchy.
+    shutil.copy2(path, destination)  # Standard-library copying preserves bytes for the subsequent manifest hash.
+
+
+def export_study_records(root: Path, target: Path) -> None:
+    """Local: retain raw controls and failed attempts. Global: scientific evidence need not have an associated model checkpoint."""
+    records = {path for pattern in ("control.json", "failure*.json") for path in root.rglob(pattern)}  # Explicit record allowlist.
+    paths = records | {path.with_name(name) for path in records for name in ("run.log", "fixed_batch.safetensors")}
+    # The second allowlisted artifact preserves full fixed-input verification tensors, never arbitrary sibling files.
+    for path in sorted(paths):  # Stable order makes release inspection straightforward.
+        if path.is_file():  # Some standalone records have no log file; do not manufacture one.
+            copy_artifact(path, root, target)  # Reuse the model export's copying and symbolic-link policy.
+
+
 def export_run(source: Path, target: Path) -> dict:
     """Local: package one checkpoint and its evidence. Global: portable exports reload identically and exclude unrelated local files."""
     source, target = Path(source), Path(target)  # Accept CLI-derived and test paths consistently.
@@ -47,11 +66,7 @@ def export_run(source: Path, target: Path) -> dict:
     model, config = load_generator(source, "cpu")  # No GPU compute or inference service is needed to build a release.
     for path in sorted(source.rglob("*")):  # Inspect only files belonging to this explicitly selected experiment.
         if path.is_file() and path.name in ARTIFACT_NAMES:  # Whitelist excludes .env, tokens, source data, and miscellaneous files.
-            if path.is_symlink():  # A symlink must not smuggle an unrelated credential or dataset into a public export.
-                raise ValueError(f"Refusing symbolic link in export: {path}")  # Keep the intended artifact boundary explicit.
-            destination = target / path.relative_to(source)  # Preserve evaluation grouping and original filenames.
-            destination.parent.mkdir(parents=True, exist_ok=True)  # Create nested sampling/evaluation artifact directories.
-            shutil.copy2(path, destination)  # Copy only authorized files, never caches or whole source datasets.
+            copy_artifact(path, source, target)  # Shared helper preserves grouping and excludes symbolic links.
     if file_hash(target / "checkpoint.pt") != original_hash:  # An atomic training update during export changes file identity.
         raise RuntimeError(f"Checkpoint changed during export: {source}")  # Retry after the run is stable; never publish mismatched weights.
     weights = {key: value.detach().cpu().contiguous() for key, value in model.state_dict().items()}  # Safe flat tensor mapping.
@@ -110,7 +125,9 @@ def publish_study(root: Path, namespace: str = "BurnyCoder", dry_run: bool = Fal
             continue  # They will be included after a completed, failed, or diagnostic result is recorded.
         config = json.loads((source / "config.json").read_text())  # Determine destination without executing checkpoint contents.
         target = destination / config["dataset"] / source.relative_to(root)  # Group all seeds and controls into dataset repositories.
+        event("checkpoint_export_start", source=str(source), target=str(target))  # Large releases expose their current packaging phase.
         exports.append(export_run(source, target))  # Complete concrete export before authentication or upload.
+        event("checkpoint_export_complete", **exports[-1])  # Log actual completed files and bytes without truncating their metadata.
     if not exports:  # An empty release must not create misleading public repositories.
         raise ValueError(f"No reported checkpoints to publish under {root}")  # Exposes missing training/report artifacts.
     datasets = sorted({entry["dataset"] for entry in exports})  # All measured domains receive a public model repository.
@@ -121,7 +138,9 @@ def publish_study(root: Path, namespace: str = "BurnyCoder", dry_run: bool = Fal
         (directory / "README.md").write_text(f"---\nlicense: mit\npipeline_tag: unconditional-image-generation\n---\n"
             f"# Oscillatory flow matching: {dataset}\n\nAll reported checkpoints and evidence from [the source study]({REPOSITORY}). "
             "Weights are in the run subdirectories below. Each has a model card, exact config, safe inference weights, "
-            "original checkpoint, logs, and artifact manifest. Consult each status before interpreting results.\n\n" + listing + "\n", encoding="utf-8")
+            "original checkpoint, logs, and artifact manifest. Consult each status before interpreting results. "
+            "Shared raw controls and failed attempts, including records without checkpoints, are in `study-records/`.\n\n" + listing + "\n", encoding="utf-8")
+        export_study_records(root, directory / "study-records")  # Each domain release retains the complete shared control evidence.
         for name in ["schedule.json", "freeze.json", "budget.json"]:  # Include available study-level provenance without arbitrary JSON copying.
             matches = [root / name, root / "study" / name, root.parent / name]  # Supports study-only or all-runs publication roots.
             existing = next((path for path in matches if path.exists()), None)  # Prefer provenance closest to the requested root.
@@ -153,6 +172,7 @@ def publish_study(root: Path, namespace: str = "BurnyCoder", dry_run: bool = Fal
     result["collection"] = collection.url  # Save the concrete public destination returned by the Hub.
     for dataset, repo_id in zip(datasets, result["repositories"], strict=True):  # No best-model selection during upload.
         api.create_repo(repo_id, repo_type="model", private=False, exist_ok=True)  # User explicitly authorized public publication.
+        event("hub_repository_upload_start", repository=repo_id, directory=str(destination / dataset))  # Distinguish transfer from packaging.
         commit = api.upload_folder(repo_id=repo_id, folder_path=destination / dataset, repo_type="model",
                                    commit_message="Publish complete reported oscillator-flow study artifacts")  # Allowlisted tree only.
         add_collection_item(collection.slug, item_id=repo_id, item_type="model", exists_ok=True)  # Links every dataset repository.

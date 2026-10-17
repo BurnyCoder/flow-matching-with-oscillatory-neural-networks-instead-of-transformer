@@ -4,6 +4,8 @@ Train an unconditional image generator whose velocity network uses coupled Kuram
 
 The study asks about **sample quality versus measured computational cost**. Superior oscillator performance is an empirical question. The [pre-specified protocol](docs/protocol.md) defines the six paired CIFAR seeds, fixed 45-minute runs, primary KID analysis, controls, power calculation, and cumulative 24 GPU-hour cap. [Experiment reports](reports/) distinguish completed evidence from pending work; a working implementation alone does not establish comparative quality.
 
+The completed six-seed primary comparison **contradicts the proposed oscillator improvement in this setting**. At 32 velocity evaluations, mean KID was 0.18567 for the oscillator, 0.09179 for the transformer, and 0.13487 for the recurrent convolutional control. The paired oscillator-minus-transformer difference was +0.09388 (approximate 95% t interval [0.08543, 0.10234]; exact two-sided sign-flip p = 0.03125). Each seed used 5,000 generated images against 10,000 test images. The [paper](reports/paper.md), [PDF](reports/paper.pdf), and [machine-readable analysis](reports/analysis.json) give the measurements, cost comparison, controls, assumptions, and limitations. This is a result about these small implementations and fixed budgets, not all oscillator networks.
+
 ## Install and run
 
 Use Linux or WSL, Python 3.12, and [uv](https://docs.astral.sh/uv/getting-started/installation/). The project uses a local `.venv`. CUDA installation is pinned to PyTorch 2.11.0 / torchvision 0.26.0 CUDA 12.8 wheels, verified on the local RTX 5070 Laptop GPU. A compatible NVIDIA driver and approximately 8 GB VRAM are the target; the CPU variant also runs sampling and software tests.
@@ -27,6 +29,16 @@ HF_HOME=.cache/huggingface uv run --no-sync hf download BurnyCoder/oscillatory-f
   --local-dir .cache/pretrained/mnist
 uv run --no-sync ofm sample --run .cache/pretrained/mnist/study/pilot/mnist-onn-s101 \
   --output runs/pretrained-preview --device cpu --count 64 --nfe 32
+```
+
+The final seed-101 CIFAR-10 oscillator checkpoint uses the same interface. Its images remain rough, and the primary comparison above favors the transformer. Substitute `cifar10-dit-s101` or `cifar10-conv-s101` in both paths to inspect the corresponding baseline.
+
+```bash
+HF_HOME=.cache/huggingface uv run --no-sync hf download BurnyCoder/oscillatory-flow-matching-cifar10 \
+  study/main/cifar10-onn-s101/config.json study/main/cifar10-onn-s101/model.safetensors \
+  --local-dir .cache/pretrained/cifar10
+uv run --no-sync ofm sample --run .cache/pretrained/cifar10/study/main/cifar10-onn-s101 \
+  --output runs/pretrained-cifar10-preview --device cpu --count 64 --nfe 32
 ```
 
 ```bash
