@@ -86,8 +86,8 @@ def render_pdf(markdown: Path, root: Path) -> Path:
     source = markdown.with_suffix(".typ")  # Preserve the intermediate typesetting source for debugging and replication.
     pypandoc.convert_file(str(markdown), "typst", outputfile=str(source),
                          extra_args=["--standalone", "--resource-path=" + str(root.resolve()), "-V", "papersize=a4"])
-    source.write_text("#show figure.where(kind: table): set block(breakable: true)\n" + source.read_text(encoding="utf-8"),
-                      encoding="utf-8")  # Typst's documented rule prevents Pandoc table figures from overlapping at page boundaries.
+    source.write_text("#show figure.where(kind: table): set block(breakable: true)\n#show table: set text(size: 8pt)\n"
+                      + source.read_text(encoding="utf-8"), encoding="utf-8")  # Break long tables and keep full numeric values inside columns.
     destination = markdown.with_suffix(".pdf")  # Keep human-readable source and rendered output adjacent.
     typst.compile(str(source.resolve()), output=str(destination.resolve()), root=str(root.resolve()))  # No external LaTeX needed.
     return destination  # A concrete generated file, never a claimed PDF that was not compiled.
