@@ -213,6 +213,7 @@ Each displayed row contains both declared seeds, 101 and 102, at 32 velocity eva
 | [checks/cifar10-metric-smoke/evaluations/validation/repeat](<experiments/control-checks--cifar10-metric-smoke--evaluations--validation--repeat.md>) | {"repeat_max_absolute_difference": 0.0} |
 | [checks/final-export-reloads](<experiments/control-checks--final-export-reloads.md>) | {"compared_checkpoints": 31, "all_state_tensors_equal": true, "prediction_max_absolute_difference": 0.0} |
 | [study/controls/real-versus-real](<experiments/control-study--controls--real-versus-real.md>) | {"metrics": {"frechet_inception_distance": 10.272234758028844, "kernel_inception_distance_mean": -2.55584716796875e-05, "kernel_inception_distance_std": 0.00010886578191701542}, "repeat_max_absolute_difference": 0.0} |
+| [study/main/cifar10-onn-s101/cpu-public-check](<experiments/control-study--main--cifar10-onn-s101--cpu-public-check.md>) | {"all_state_tensors_equal": true, "prediction_max_absolute_difference": 0.0} |
 | [study/main/cifar10-onn-s101/evaluations/identity](<experiments/control-study--main--cifar10-onn-s101--evaluations--identity.md>) | {"identity_exact_equal": true} |
 | [study/main/cifar10-onn-s102/evaluations/identity](<experiments/control-study--main--cifar10-onn-s102--evaluations--identity.md>) | {"identity_exact_equal": true} |
 | [study/pilot/mnist-onn-s101/cpu-public-check](<experiments/control-study--pilot--mnist-onn-s101--cpu-public-check.md>) | {"prediction_max_absolute_difference": 0.0} |
