@@ -110,7 +110,7 @@ The default CIFAR models have 1,297,712 oscillator, 1,298,864 transformer, and 1
 - Markdown experiment records, a consolidated comparison/glossary, scientific figures through Matplotlib, and PDFs through bundled Pandoc and Typst.
 - Explicit Hugging Face exports with model cards, original checkpoints, safe inference weights, and SHA-256 manifests.
 
-Core libraries are Python, PyTorch, torchvision, TorchCFM, torchdiffeq, torch-fidelity, NumPy, SciPy, POT, safetensors, python-dotenv, huggingface-hub, Matplotlib, Pandoc, and Typst. `uv.lock` records exact resolved versions. Sources for the model equations and statistical decisions are linked in the protocol and code comments. This original implementation does not copy unlicensed AKOrN source code.
+Core libraries are Python, PyTorch, torchvision, TorchCFM, torchdiffeq, torch-fidelity, NumPy, SciPy, scikit-learn, POT, safetensors, python-dotenv, huggingface-hub, Matplotlib, Pandoc, and Typst. `uv.lock` records exact resolved versions. Sources for the model equations and statistical decisions are linked in the protocol and code comments. This original implementation does not copy unlicensed AKOrN source code.
 
 ## Artifacts and publication
 
